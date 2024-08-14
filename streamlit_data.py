@@ -4,9 +4,11 @@ from bs4 import BeautifulSoup
 import pandas as pd
 import time
 import logging
+import json
+from urllib.parse import urlencode
 
 # Set up logging
-logging.basicConfig(level=logging.INFO)
+logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)
 
 # The URLs of the webpages you want to scrape
@@ -43,37 +45,78 @@ urls = ["https://www.investing.com/economic-calendar/unemployment-rate-300",
         "https://www.investing.com/economic-calendar/personal-income-234"
         ]
 
+
 @st.cache_data
 def scrape_investing_com(url):
     headers = {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
+        'X-Requested-With': 'XMLHttpRequest'
     }
+    
     try:
+        # First, get the main page to extract necessary parameters
         response = requests.get(url, headers=headers)
-        response.raise_for_status()  # Raise an exception for bad status codes
+        response.raise_for_status()
         soup = BeautifulSoup(response.content, 'html.parser')
         
-        title = soup.title.string if soup.title else "Unknown Indicator"
-        table = soup.find('table', {'id': 'eventHistoryTable'})
+        # Extract the event ID from the URL
+        event_id = url.split('-')[-1]
         
-        if not table:
-            logger.warning(f"No data table found for {url}")
+        # Find the smlID parameter
+        sml_id = soup.find('div', {'id': 'eventHistoryTable'})
+        if sml_id:
+            sml_id = sml_id.get('data-sml-id')
+        else:
+            logger.error(f"Could not find smlID for {url}")
             return pd.DataFrame()
         
-        rows = table.find_all('tr')
-        data = []
+        # Construct the API URL
+        api_url = "https://www.investing.com/economic-calendar/Service/getCalendarFilteredData"
         
-        for row in rows[1:7]:  # Skip header row and limit to 6 rows
+        # Prepare the POST data
+        post_data = {
+            "country[]": "5",  # 5 is the code for United States
+            "eventID": event_id,
+            "timeZone": 8,
+            "timeFilter": "timeRemain",
+            "currentTab": "custom",
+            "limit_from": 0,
+            "smlID": sml_id
+        }
+        
+        # Make the POST request
+        response = requests.post(api_url, headers=headers, data=urlencode(post_data))
+        response.raise_for_status()
+        
+        # Parse the JSON response
+        data = json.loads(response.text)
+        
+        if 'data' not in data:
+            logger.error(f"No data found in response for {url}")
+            return pd.DataFrame()
+        
+        # Extract the rows from the HTML in the response
+        soup = BeautifulSoup(data['data'], 'html.parser')
+        rows = soup.find_all('tr')
+        
+        parsed_data = []
+        for row in rows:
             cols = row.find_all('td')
             if len(cols) >= 4:
-                row_data = [col.text.strip() for col in cols[:4]]
-                data.append([title] + row_data)
+                date = cols[0].text.strip()
+                actual = cols[1].text.strip()
+                forecast = cols[2].text.strip()
+                previous = cols[3].text.strip()
+                parsed_data.append([date, actual, forecast, previous])
         
-        if not data:
+        if not parsed_data:
             logger.warning(f"No data rows found for {url}")
             return pd.DataFrame()
         
-        df = pd.DataFrame(data, columns=['Indicator', 'Date', 'Actual', 'Forecast', 'Previous'])
+        df = pd.DataFrame(parsed_data, columns=['Date', 'Actual', 'Forecast', 'Previous'])
+        df['Indicator'] = soup.find('h1').text.strip() if soup.find('h1') else "Unknown Indicator"
+        
+        logger.info(f"Successfully scraped data for {url}")
         return df
     
     except requests.RequestException as e:
