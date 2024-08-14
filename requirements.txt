@@ -1,0 +1,12 @@
+streamlit
+yfinance 
+pandas
+numpy 
+matplotlib
+datetime
+plotly
+plotly==5.14.1
+requests
+beautifulsoup4
+
+kaleido==0.2.1
