@@ -3,6 +3,11 @@ import requests
 from bs4 import BeautifulSoup
 import pandas as pd
 import time
+import logging
+
+# Set up logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 # The URLs of the webpages you want to scrape
 urls = ["https://www.investing.com/economic-calendar/unemployment-rate-300",
@@ -38,33 +43,45 @@ urls = ["https://www.investing.com/economic-calendar/unemployment-rate-300",
         "https://www.investing.com/economic-calendar/personal-income-234"
         ]
 
-
 @st.cache_data
 def scrape_investing_com(url):
     headers = {
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
     }
-    response = requests.get(url, headers=headers)
-    soup = BeautifulSoup(response.content, 'html.parser')
-    
-    title = soup.title.string
-    rows = soup.find_all('tr')
-    
-    data = []
-    row_counter = 0
-    
-    for row in rows:
-        if row_counter >= 6:
-            break
+    try:
+        response = requests.get(url, headers=headers)
+        response.raise_for_status()  # Raise an exception for bad status codes
+        soup = BeautifulSoup(response.content, 'html.parser')
         
-        cols = row.find_all('td')
+        title = soup.title.string if soup.title else "Unknown Indicator"
+        table = soup.find('table', {'id': 'eventHistoryTable'})
         
-        if len(cols) == 6:
-            cols_text = [col.text.strip() for col in cols]
-            data.append([title] + cols_text)
-            row_counter += 1
+        if not table:
+            logger.warning(f"No data table found for {url}")
+            return pd.DataFrame()
+        
+        rows = table.find_all('tr')
+        data = []
+        
+        for row in rows[1:7]:  # Skip header row and limit to 6 rows
+            cols = row.find_all('td')
+            if len(cols) >= 4:
+                row_data = [col.text.strip() for col in cols[:4]]
+                data.append([title] + row_data)
+        
+        if not data:
+            logger.warning(f"No data rows found for {url}")
+            return pd.DataFrame()
+        
+        df = pd.DataFrame(data, columns=['Indicator', 'Date', 'Actual', 'Forecast', 'Previous'])
+        return df
     
-    return pd.DataFrame(data, columns=['Indicator', 'Date', 'Time', 'Actual', 'Forecast', 'Previous'])
+    except requests.RequestException as e:
+        logger.error(f"Error fetching data from {url}: {str(e)}")
+        return pd.DataFrame()
+    except Exception as e:
+        logger.error(f"Unexpected error processing {url}: {str(e)}")
+        return pd.DataFrame()
 
 def main():
     st.title("US Economic Data Dashboard")
@@ -82,18 +99,20 @@ def main():
             indicator_name = url.split('/')[-1].replace('-', ' ').title()
             with st.spinner(f'Fetching data for {indicator_name}...'):
                 df = scrape_investing_com(url)
-                all_data.append(df)
-            
-            st.subheader(f"{indicator_name} Data")
-            st.dataframe(df)
-            
-            # Attempt to create a line chart
-            if 'Actual' in df.columns:
-                df['Actual'] = pd.to_numeric(df['Actual'].replace('[^\d.-]', '', regex=True), errors='coerce')
-                if df['Actual'].notna().any():
-                    st.line_chart(df.set_index('Date')['Actual'])
+                if not df.empty:
+                    all_data.append(df)
+                    st.subheader(f"{indicator_name} Data")
+                    st.dataframe(df)
+                    
+                    # Attempt to create a line chart
+                    if 'Actual' in df.columns:
+                        df['Actual'] = pd.to_numeric(df['Actual'].replace('[^\d.-]', '', regex=True), errors='coerce')
+                        if df['Actual'].notna().any():
+                            st.line_chart(df.set_index('Date')['Actual'])
+                        else:
+                            st.write("Unable to create chart: 'Actual' column not numeric")
                 else:
-                    st.write("Unable to create chart: 'Actual' column not numeric")
+                    st.warning(f"No data available for {indicator_name}")
         
         # Combine all data and offer download
         if all_data:
@@ -105,6 +124,8 @@ def main():
                 file_name="US_economic_data.csv",
                 mime="text/csv",
             )
+        else:
+            st.error("No data was successfully retrieved for any selected indicator.")
 
 if __name__ == "__main__":
     main()
