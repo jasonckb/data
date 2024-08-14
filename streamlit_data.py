@@ -1,22 +1,15 @@
 import streamlit as st
-from selenium import webdriver
-from selenium.webdriver.chrome.service import Service
-from selenium.webdriver.chrome.options import Options
-from webdriver_manager.chrome import ChromeDriverManager
+from playwright.sync_api import sync_playwright
 from bs4 import BeautifulSoup
 import pandas as pd
 import time
 
-# Setup Chrome options
-chrome_options = Options()
-chrome_options.add_argument("--headless")  # Ensure GUI is off
-chrome_options.add_argument("--no-sandbox")
-chrome_options.add_argument("--disable-dev-shm-usage")
-
-# Setup WebDriver
+# Setup Playwright browser
 @st.cache_resource
-def get_driver():
-    return webdriver.Chrome(service=Service(ChromeDriverManager().install()), options=chrome_options)
+def get_browser():
+    playwright = sync_playwright().start()
+    browser = playwright.chromium.launch(headless=True)
+    return browser
 
 # The URLs of the webpages you want to scrape
 urls = ["https://www.investing.com/economic-calendar/unemployment-rate-300",
@@ -52,12 +45,12 @@ urls = ["https://www.investing.com/economic-calendar/unemployment-rate-300",
         "https://www.investing.com/economic-calendar/personal-income-234"
         ]
 
-
-def scrape_investing_com(url, driver):
-    driver.get(url)
+def scrape_investing_com(url, browser):
+    page = browser.new_page()
+    page.goto(url)
     time.sleep(2)  # Wait for the page to load
     
-    html = driver.page_source
+    html = page.content()
     soup = BeautifulSoup(html, 'html.parser')
     
     title = soup.title.string
@@ -77,12 +70,13 @@ def scrape_investing_com(url, driver):
             data.append([title] + cols_text)
             row_counter += 1
     
+    page.close()
     return pd.DataFrame(data, columns=['Indicator', 'Date', 'Time', 'Actual', 'Forecast', 'Previous'])
 
 def main():
     st.title("US Economic Data Dashboard")
     
-    driver = get_driver()
+    browser = get_browser()
     
     st.sidebar.header("Select Economic Indicators")
     selected_urls = st.sidebar.multiselect(
@@ -96,7 +90,7 @@ def main():
         for url in selected_urls:
             indicator_name = url.split('/')[-1].replace('-', ' ').title()
             with st.spinner(f'Fetching data for {indicator_name}...'):
-                df = scrape_investing_com(url, driver)
+                df = scrape_investing_com(url, browser)
                 all_data.append(df)
             
             st.subheader(f"{indicator_name} Data")
@@ -121,7 +115,7 @@ def main():
                 mime="text/csv",
             )
     
-    driver.quit()
+    browser.close()
 
 if __name__ == "__main__":
     main()
