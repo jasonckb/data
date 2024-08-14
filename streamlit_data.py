@@ -1,15 +1,8 @@
 import streamlit as st
-from playwright.sync_api import sync_playwright
+import requests
 from bs4 import BeautifulSoup
 import pandas as pd
 import time
-
-# Setup Playwright browser
-@st.cache_resource
-def get_browser():
-    playwright = sync_playwright().start()
-    browser = playwright.chromium.launch(headless=True)
-    return browser
 
 # The URLs of the webpages you want to scrape
 urls = ["https://www.investing.com/economic-calendar/unemployment-rate-300",
@@ -45,13 +38,14 @@ urls = ["https://www.investing.com/economic-calendar/unemployment-rate-300",
         "https://www.investing.com/economic-calendar/personal-income-234"
         ]
 
-def scrape_investing_com(url, browser):
-    page = browser.new_page()
-    page.goto(url)
-    time.sleep(2)  # Wait for the page to load
-    
-    html = page.content()
-    soup = BeautifulSoup(html, 'html.parser')
+
+@st.cache_data
+def scrape_investing_com(url):
+    headers = {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+    }
+    response = requests.get(url, headers=headers)
+    soup = BeautifulSoup(response.content, 'html.parser')
     
     title = soup.title.string
     rows = soup.find_all('tr')
@@ -70,13 +64,10 @@ def scrape_investing_com(url, browser):
             data.append([title] + cols_text)
             row_counter += 1
     
-    page.close()
     return pd.DataFrame(data, columns=['Indicator', 'Date', 'Time', 'Actual', 'Forecast', 'Previous'])
 
 def main():
     st.title("US Economic Data Dashboard")
-    
-    browser = get_browser()
     
     st.sidebar.header("Select Economic Indicators")
     selected_urls = st.sidebar.multiselect(
@@ -90,7 +81,7 @@ def main():
         for url in selected_urls:
             indicator_name = url.split('/')[-1].replace('-', ' ').title()
             with st.spinner(f'Fetching data for {indicator_name}...'):
-                df = scrape_investing_com(url, browser)
+                df = scrape_investing_com(url)
                 all_data.append(df)
             
             st.subheader(f"{indicator_name} Data")
@@ -114,8 +105,6 @@ def main():
                 file_name="US_economic_data.csv",
                 mime="text/csv",
             )
-    
-    browser.close()
 
 if __name__ == "__main__":
     main()
