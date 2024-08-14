@@ -1,22 +1,24 @@
 import streamlit as st
 import pandas as pd
-import yfinance as yf
+import investpy
 
-def fetch_economic_data(indicator):
+def fetch_economic_data(indicator, country='united states'):
     """
-    Fetch economic data using yfinance.
-    You can expand this function to include more data sources or indicators.
+    Fetch economic data using investpy.
     """
-    if indicator == "GDP":
-        data = yf.Ticker("GDP").history(period="max")
-    elif indicator == "Inflation":
-        data = yf.Ticker("CPI").history(period="max")
-    elif indicator == "Unemployment":
-        data = yf.Ticker("UNRATE").history(period="max")
-    else:
-        data = pd.DataFrame()
-    
-    return data
+    try:
+        # Fetch data for the last 5 years
+        data = investpy.economic_calendar(
+            countries=[country],
+            importances=['high'],
+            categories=[indicator],
+            from_date=(pd.Timestamp.now() - pd.DateOffset(years=5)).strftime('%d/%m/%Y'),
+            to_date=pd.Timestamp.now().strftime('%d/%m/%Y')
+        )
+        return data
+    except Exception as e:
+        st.error(f"Error fetching data for {indicator}: {str(e)}")
+        return pd.DataFrame()
 
 def main():
     st.title("US Economic Data Dashboard")
@@ -25,7 +27,7 @@ def main():
     st.sidebar.header("Select Economic Indicators")
     indicators = st.sidebar.multiselect(
         "Choose indicators",
-        ["GDP", "Inflation", "Unemployment"]
+        ["GDP", "CPI", "Unemployment Rate"]
     )
     
     # Main content
@@ -33,8 +35,17 @@ def main():
         for indicator in indicators:
             st.header(f"{indicator} Data")
             data = fetch_economic_data(indicator)
-            st.dataframe(data)
-            st.line_chart(data['Close'])
+            if not data.empty:
+                st.dataframe(data)
+                
+                # Create a line chart if 'Actual' column exists and is numeric
+                if 'Actual' in data.columns and pd.api.types.is_numeric_dtype(data['Actual']):
+                    chart_data = data.set_index('Date')['Actual'].sort_index()
+                    st.line_chart(chart_data)
+                else:
+                    st.write("Unable to create chart: 'Actual' column not found or not numeric")
+            else:
+                st.write(f"No data available for {indicator}")
     else:
         st.write("Please select at least one indicator from the sidebar.")
 
