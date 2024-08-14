@@ -5,57 +5,58 @@ import pandas as pd
 import time
 
 # The URLs of the webpages you want to scrape
-urls = [
-    "https://www.investing.com/economic-calendar/unemployment-rate-300",
-    "https://www.investing.com/economic-calendar/nonfarm-payrolls-227",
-    "https://www.investing.com/economic-calendar/average-hourly-earnings-8",
-    "https://www.investing.com/economic-calendar/average-hourly-earnings-1777",        
-    "https://www.investing.com/economic-calendar/adp-nonfarm-employment-change-1",
-    "https://www.investing.com/economic-calendar/jolts-job-openings-1057",
-    "https://www.investing.com/economic-calendar/ism-manufacturing-pmi-173",
-    "https://www.investing.com/economic-calendar/ism-non-manufacturing-pmi-176",    
-    "https://www.investing.com/economic-calendar/core-pce-price-index-905",
-    "https://www.investing.com/economic-calendar/core-pce-price-index-61",
-    "https://www.investing.com/economic-calendar/pce-price-index-906",
-    "https://www.investing.com/economic-calendar/core-cpi-69",
-    "https://www.investing.com/economic-calendar/core-cpi-736",           
-    "https://www.investing.com/economic-calendar/cpi-733",
-    "https://www.investing.com/economic-calendar/core-ppi-62",
-    "https://www.investing.com/economic-calendar/ppi-238",
-    "https://www.investing.com/economic-calendar/gdp-price-index-343",
-    "https://www.investing.com/economic-calendar/core-retail-sales-63",
-    "https://www.investing.com/economic-calendar/retail-sales-256",
-    "https://www.investing.com/economic-calendar/building-permits-25",
-    "https://www.investing.com/economic-calendar/housing-starts-151",
-    "https://www.investing.com/economic-calendar/existing-home-sales-99",
-    "https://www.investing.com/economic-calendar/new-home-sales-222",
-    "https://www.investing.com/economic-calendar/cb-consumer-confidence-48",
-    "https://www.investing.com/economic-calendar/michigan-consumer-sentiment-320",
-    "https://www.investing.com/economic-calendar/gdp-375",
-    "https://www.investing.com/economic-calendar/durable-goods-orders-86",
-    "https://www.investing.com/economic-calendar/core-durable-goods-orders-59",
-    "https://www.investing.com/economic-calendar/industrial-production-161",
-    "https://www.investing.com/economic-calendar/personal-income-234"
-]
+urls = ["https://www.investing.com/economic-calendar/unemployment-rate-300",
+        "https://www.investing.com/economic-calendar/nonfarm-payrolls-227",
+        "https://www.investing.com/economic-calendar/average-hourly-earnings-8",
+        "https://www.investing.com/economic-calendar/average-hourly-earnings-1777",        
+        "https://www.investing.com/economic-calendar/adp-nonfarm-employment-change-1",
+        "https://www.investing.com/economic-calendar/jolts-job-openings-1057",
+        "https://www.investing.com/economic-calendar/ism-manufacturing-pmi-173",
+        "https://www.investing.com/economic-calendar/ism-non-manufacturing-pmi-176",    
+        "https://www.investing.com/economic-calendar/core-pce-price-index-905",
+        "https://www.investing.com/economic-calendar/core-pce-price-index-61",
+        "https://www.investing.com/economic-calendar/pce-price-index-906",
+        "https://www.investing.com/economic-calendar/core-cpi-69",
+        "https://www.investing.com/economic-calendar/core-cpi-736",           
+        "https://www.investing.com/economic-calendar/cpi-733",
+        "https://www.investing.com/economic-calendar/core-ppi-62",
+        "https://www.investing.com/economic-calendar/ppi-238",
+        "https://www.investing.com/economic-calendar/gdp-price-index-343",
+        "https://www.investing.com/economic-calendar/core-retail-sales-63",
+        "https://www.investing.com/economic-calendar/core-retail-sales-63",
+        "https://www.investing.com/economic-calendar/retail-sales-256",
+        "https://www.investing.com/economic-calendar/building-permits-25",
+        "https://www.investing.com/economic-calendar/housing-starts-151",
+        "https://www.investing.com/economic-calendar/existing-home-sales-99",
+        "https://www.investing.com/economic-calendar/new-home-sales-222",
+        "https://www.investing.com/economic-calendar/cb-consumer-confidence-48",
+        "https://www.investing.com/economic-calendar/michigan-consumer-sentiment-320",
+        "https://www.investing.com/economic-calendar/gdp-375",
+        "https://www.investing.com/economic-calendar/durable-goods-orders-86",
+        "https://www.investing.com/economic-calendar/core-durable-goods-orders-59",
+        "https://www.investing.com/economic-calendar/industrial-production-161",
+        "https://www.investing.com/economic-calendar/personal-income-234"
+        ]
 
-@st.cache_resource
-def get_playwright():
+
+def initialize_playwright():
     return sync_playwright().start()
 
 @st.cache_data
-def scrape_investing_com(url, playwright):
-    browser = playwright.chromium.launch()
-    page = browser.new_page()
-    page.goto(url)
-    
-    # Wait for the table to load
-    page.wait_for_selector('#eventHistoryTable')
-    
-    # Get the page content
-    content = page.content()
-    
-    # Close the browser
-    browser.close()
+def scrape_investing_com(url):
+    with initialize_playwright() as playwright:
+        browser = playwright.chromium.launch()
+        page = browser.new_page()
+        page.goto(url)
+        
+        # Wait for the table to load
+        page.wait_for_selector('#eventHistoryTable')
+        
+        # Get the page content
+        content = page.content()
+        
+        # Close the browser
+        browser.close()
     
     # Use BeautifulSoup to parse the content
     soup = BeautifulSoup(content, 'html.parser')
@@ -88,8 +89,6 @@ def scrape_investing_com(url, playwright):
 def main():
     st.title("US Economic Data Dashboard")
     
-    playwright = get_playwright()
-    
     st.sidebar.header("Select Economic Indicators")
     selected_urls = st.sidebar.multiselect(
         "Choose indicators",
@@ -102,7 +101,7 @@ def main():
         for url in selected_urls:
             indicator_name = url.split('/')[-1].replace('-', ' ').title()
             with st.spinner(f'Fetching data for {indicator_name}...'):
-                df = scrape_investing_com(url, playwright)
+                df = scrape_investing_com(url)
                 if not df.empty:
                     all_data.append(df)
                     st.subheader(f"{indicator_name} Data")
