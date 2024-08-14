@@ -1,8 +1,22 @@
-import requests
+import streamlit as st
+from selenium import webdriver
+from selenium.webdriver.chrome.service import Service
+from selenium.webdriver.chrome.options import Options
+from webdriver_manager.chrome import ChromeDriverManager
 from bs4 import BeautifulSoup
 import pandas as pd
-import streamlit as st
 import time
+
+# Setup Chrome options
+chrome_options = Options()
+chrome_options.add_argument("--headless")  # Ensure GUI is off
+chrome_options.add_argument("--no-sandbox")
+chrome_options.add_argument("--disable-dev-shm-usage")
+
+# Setup WebDriver
+@st.cache_resource
+def get_driver():
+    return webdriver.Chrome(service=Service(ChromeDriverManager().install()), options=chrome_options)
 
 # The URLs of the webpages you want to scrape
 urls = ["https://www.investing.com/economic-calendar/unemployment-rate-300",
@@ -38,38 +52,37 @@ urls = ["https://www.investing.com/economic-calendar/unemployment-rate-300",
         "https://www.investing.com/economic-calendar/personal-income-234"
         ]
 
-def scrape_investing_com(url):
-    headers = {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
-    }
-    response = requests.get(url, headers=headers)
-    soup = BeautifulSoup(response.text, 'html.parser')
+
+def scrape_investing_com(url, driver):
+    driver.get(url)
+    time.sleep(2)  # Wait for the page to load
     
-    # Extract the indicator name
-    indicator = soup.find('h1', class_='ecTitle').text.strip()
+    html = driver.page_source
+    soup = BeautifulSoup(html, 'html.parser')
     
-    # Find the table with historical data
-    table = soup.find('table', id='eventHistoryTable')
+    title = soup.title.string
+    rows = soup.find_all('tr')
     
-    if table:
-        rows = table.find_all('tr')[1:]  # Skip the header row
-        data = []
-        for row in rows:
-            cols = row.find_all('td')
-            if len(cols) >= 4:
-                date = cols[0].text.strip()
-                actual = cols[1].text.strip()
-                forecast = cols[2].text.strip()
-                previous = cols[3].text.strip()
-                data.append([date, actual, forecast, previous])
+    data = []
+    row_counter = 0
+    
+    for row in rows:
+        if row_counter >= 6:
+            break
         
-        df = pd.DataFrame(data, columns=['Date', 'Actual', 'Forecast', 'Previous'])
-        return indicator, df
-    else:
-        return indicator, pd.DataFrame()
+        cols = row.find_all('td')
+        
+        if len(cols) == 6:
+            cols_text = [col.text.strip() for col in cols]
+            data.append([title] + cols_text)
+            row_counter += 1
+    
+    return pd.DataFrame(data, columns=['Indicator', 'Date', 'Time', 'Actual', 'Forecast', 'Previous'])
 
 def main():
     st.title("US Economic Data Dashboard")
+    
+    driver = get_driver()
     
     st.sidebar.header("Select Economic Indicators")
     selected_urls = st.sidebar.multiselect(
@@ -79,26 +92,36 @@ def main():
     )
     
     if selected_urls:
+        all_data = []
         for url in selected_urls:
-            indicator, data = scrape_investing_com(url)
-            st.header(f"{indicator} Data")
+            indicator_name = url.split('/')[-1].replace('-', ' ').title()
+            with st.spinner(f'Fetching data for {indicator_name}...'):
+                df = scrape_investing_com(url, driver)
+                all_data.append(df)
             
-            if not data.empty:
-                st.dataframe(data)
-                
-                # Convert 'Actual' to numeric, removing any non-numeric characters
-                data['Actual'] = pd.to_numeric(data['Actual'].replace('[^\d.-]', '', regex=True), errors='coerce')
-                
-                # Create a line chart if 'Actual' column is numeric
-                if data['Actual'].notna().any():
-                    st.line_chart(data.set_index('Date')['Actual'])
+            st.subheader(f"{indicator_name} Data")
+            st.dataframe(df)
+            
+            # Attempt to create a line chart
+            if 'Actual' in df.columns:
+                df['Actual'] = pd.to_numeric(df['Actual'].replace('[^\d.-]', '', regex=True), errors='coerce')
+                if df['Actual'].notna().any():
+                    st.line_chart(df.set_index('Date')['Actual'])
                 else:
                     st.write("Unable to create chart: 'Actual' column not numeric")
-            else:
-                st.error(f"No data available for {indicator}")
-            
-            # Add a delay to avoid overwhelming the server
-            time.sleep(1)
+        
+        # Combine all data and offer download
+        if all_data:
+            combined_df = pd.concat(all_data)
+            csv = combined_df.to_csv(index=False)
+            st.download_button(
+                label="Download all data as CSV",
+                data=csv,
+                file_name="US_economic_data.csv",
+                mime="text/csv",
+            )
+    
+    driver.quit()
 
 if __name__ == "__main__":
     main()
