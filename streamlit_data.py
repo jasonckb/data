@@ -1,5 +1,5 @@
 import streamlit as st
-from playwright.sync_api import sync_playwright
+import requests
 from bs4 import BeautifulSoup
 import pandas as pd
 import time
@@ -40,18 +40,14 @@ urls = ["https://www.investing.com/economic-calendar/unemployment-rate-300",
 
 
 def fetch_page_content(url):
+    headers = {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+    }
     try:
-        with sync_playwright() as p:
-            browser = p.chromium.launch()
-            page = browser.new_page()
-            page.goto(url)
-            # Wait for the table to load
-            page.wait_for_selector('#eventHistoryTable')
-            page.wait_for_timeout(5000)  # Additional wait to ensure data is loaded
-            content = page.content()
-            browser.close()
-        return content
-    except Exception as e:
+        response = requests.get(url, headers=headers)
+        response.raise_for_status()
+        return response.text
+    except requests.RequestException as e:
         st.error(f"Error fetching {url}: {e}")
         return None
 
@@ -62,16 +58,12 @@ def scrape_investing_com(url):
     if content is None:
         return pd.DataFrame()
     
-    # Use BeautifulSoup to parse the content
     soup = BeautifulSoup(content, 'html.parser')
-    
-    # Find the table
     table = soup.find('table', {'id': 'eventHistoryTable'})
     
     if not table:
         return pd.DataFrame()
     
-    # Extract the data
     data = []
     rows = table.find_all('tr')
     for row in rows[1:7]:  # Get first 6 data rows
@@ -84,13 +76,9 @@ def scrape_investing_com(url):
             previous = cols[4].text.strip()
             data.append([date, time, actual, forecast, previous])
     
-    # Create DataFrame
     df = pd.DataFrame(data, columns=['Date', 'Time', 'Actual', 'Forecast', 'Previous'])
     indicator_element = soup.find('h1', {'class': 'ecTitle'})
-    if indicator_element:
-        df['Indicator'] = indicator_element.text.strip()
-    else:
-        df['Indicator'] = 'Unknown Indicator'
+    df['Indicator'] = indicator_element.text.strip() if indicator_element else 'Unknown Indicator'
     
     return df
 
@@ -115,7 +103,6 @@ def main():
                     st.subheader(f"{indicator_name} Data")
                     st.dataframe(df)
                     
-                    # Attempt to create a line chart
                     if 'Actual' in df.columns:
                         df['Actual'] = pd.to_numeric(df['Actual'].replace('[^\d.-]', '', regex=True), errors='coerce')
                         if df['Actual'].notna().any():
@@ -125,10 +112,8 @@ def main():
                 else:
                     st.warning(f"No data available for {indicator_name}")
             
-            # Add a delay to prevent getting blocked by the website
-            time.sleep(2)
+            time.sleep(2)  # Add a delay to prevent getting blocked
         
-        # Combine all data and offer download
         if all_data:
             combined_df = pd.concat(all_data)
             csv = combined_df.to_csv(index=False)
