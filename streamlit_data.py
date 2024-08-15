@@ -40,28 +40,25 @@ urls = ["https://www.investing.com/economic-calendar/unemployment-rate-300",
 
 
 def fetch_data_from_api(event_id):
-    url = "https://api.investing.com/api/events/events"
-    
-    end_date = datetime.now()
-    start_date = end_date - timedelta(days=365)  # Get data for the past year
-    
-    params = {
-        "eventIds": event_id,
-        "timeFrom": int(start_date.timestamp()),
-        "timeTo": int(end_date.timestamp()),
-        "timeframe": "DAILY",
-        "userTimeZoneOffset": -240,  # Adjust this based on your timezone
-        "followingType": "specified"
-    }
+    url = "https://www.investing.com/economic-calendar/Service/getCalendarFilteredData"
     
     headers = {
         "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36",
-        "Accept": "application/json",
-        "X-Requested-With": "XMLHttpRequest"
+        "X-Requested-With": "XMLHttpRequest",
+        "Content-Type": "application/x-www-form-urlencoded"
+    }
+    
+    data = {
+        "country[]": "5",  # 5 is the code for United States
+        "eventID": event_id,
+        "timeZone": "8",
+        "timeFilter": "timeRemain",
+        "currentTab": "custom",
+        "limit_from": "0"
     }
     
     try:
-        response = requests.get(url, params=params, headers=headers)
+        response = requests.post(url, headers=headers, data=data)
         response.raise_for_status()
         return response.json()
     except requests.RequestException as e:
@@ -76,22 +73,26 @@ def scrape_investing_com(url):
     if not data or 'data' not in data:
         return pd.DataFrame()
     
-    events = data['data']
-    if not events:
-        return pd.DataFrame()
+    from bs4 import BeautifulSoup
+    soup = BeautifulSoup(data['data'], 'html.parser')
+    rows = soup.find_all('tr', class_='js-event-item')
     
     df_data = []
-    for event in events[:6]:  # Get the latest 6 events
-        df_data.append({
-            'Date': datetime.fromtimestamp(event['date']).strftime('%Y-%m-%d'),
-            'Time': datetime.fromtimestamp(event['date']).strftime('%H:%M'),
-            'Actual': event.get('actual', ''),
-            'Forecast': event.get('forecast', ''),
-            'Previous': event.get('previous', ''),
-            'Indicator': event['name']
-        })
+    for row in rows[:6]:  # Get the latest 6 events
+        cols = row.find_all('td')
+        if len(cols) >= 5:
+            df_data.append({
+                'Date': cols[0].text.strip(),
+                'Time': cols[1].text.strip(),
+                'Actual': cols[2].text.strip(),
+                'Forecast': cols[3].text.strip(),
+                'Previous': cols[4].text.strip()
+            })
     
-    return pd.DataFrame(df_data)
+    df = pd.DataFrame(df_data)
+    df['Indicator'] = soup.find('h1').text.strip() if soup.find('h1') else "Unknown Indicator"
+    
+    return df
 
 def main():
     st.title("US Economic Data Dashboard")
