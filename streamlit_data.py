@@ -39,24 +39,28 @@ urls = ["https://www.investing.com/economic-calendar/unemployment-rate-300",
         ]
 
 
-def initialize_playwright():
-    return sync_playwright().start()
+def fetch_page_content(url):
+    try:
+        with sync_playwright() as p:
+            browser = p.chromium.launch()
+            page = browser.new_page()
+            page.goto(url)
+            # Wait for the table to load
+            page.wait_for_selector('#eventHistoryTable')
+            page.wait_for_timeout(5000)  # Additional wait to ensure data is loaded
+            content = page.content()
+            browser.close()
+        return content
+    except Exception as e:
+        st.error(f"Error fetching {url}: {e}")
+        return None
 
 @st.cache_data
 def scrape_investing_com(url):
-    with initialize_playwright() as playwright:
-        browser = playwright.chromium.launch()
-        page = browser.new_page()
-        page.goto(url)
-        
-        # Wait for the table to load
-        page.wait_for_selector('#eventHistoryTable')
-        
-        # Get the page content
-        content = page.content()
-        
-        # Close the browser
-        browser.close()
+    content = fetch_page_content(url)
+    
+    if content is None:
+        return pd.DataFrame()
     
     # Use BeautifulSoup to parse the content
     soup = BeautifulSoup(content, 'html.parser')
@@ -82,7 +86,11 @@ def scrape_investing_com(url):
     
     # Create DataFrame
     df = pd.DataFrame(data, columns=['Date', 'Time', 'Actual', 'Forecast', 'Previous'])
-    df['Indicator'] = soup.find('h1', {'class': 'ecTitle'}).text.strip()
+    indicator_element = soup.find('h1', {'class': 'ecTitle'})
+    if indicator_element:
+        df['Indicator'] = indicator_element.text.strip()
+    else:
+        df['Indicator'] = 'Unknown Indicator'
     
     return df
 
@@ -116,6 +124,9 @@ def main():
                             st.write("Unable to create chart: 'Actual' column not numeric")
                 else:
                     st.warning(f"No data available for {indicator_name}")
+            
+            # Add a delay to prevent getting blocked by the website
+            time.sleep(2)
         
         # Combine all data and offer download
         if all_data:
