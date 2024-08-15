@@ -1,13 +1,8 @@
 import streamlit as st
-from playwright.sync_api import sync_playwright
-from bs4 import BeautifulSoup
+import requests
 import pandas as pd
 import time
-import logging
-
-# Set up logging
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
+from datetime import datetime, timedelta
 
 # The URLs of the webpages you want to scrape
 urls = ["https://www.investing.com/economic-calendar/unemployment-rate-300",
@@ -43,55 +38,59 @@ urls = ["https://www.investing.com/economic-calendar/unemployment-rate-300",
         "https://www.investing.com/economic-calendar/personal-income-234"
         ]
 
-def fetch_page_content(url):
+def fetch_data(event_id):
+    url = "https://www.investing.com/economic-calendar/Service/getCalendarFilteredData"
+    
+    headers = {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36",
+        "X-Requested-With": "XMLHttpRequest",
+        "Content-Type": "application/x-www-form-urlencoded"
+    }
+    
+    data = {
+        "country[]": "5",  # 5 is the code for United States
+        "eventID": event_id,
+        "timeZone": "8",
+        "timeFilter": "timeRemain",
+        "currentTab": "custom",
+        "limit_from": "0"
+    }
+    
     try:
-        with sync_playwright() as p:
-            browser = p.chromium.launch(headless=True)
-            page = browser.new_page()
-            page.goto(url, wait_until="networkidle")
-            page.wait_for_selector('#eventHistoryTable', state="attached", timeout=30000)
-            content = page.content()
-            browser.close()
-        return content
-    except Exception as e:
-        logger.error(f"Error fetching {url}: {str(e)}")
+        response = requests.post(url, headers=headers, data=data)
+        response.raise_for_status()
+        return response.json()
+    except requests.RequestException as e:
+        st.error(f"Error fetching data for event {event_id}: {e}")
         return None
 
 @st.cache_data
 def scrape_investing_com(url):
-    content = fetch_page_content(url)
+    event_id = url.split('-')[-1]
+    data = fetch_data(event_id)
     
-    if content is None:
+    if not data or 'data' not in data:
         return pd.DataFrame()
     
-    soup = BeautifulSoup(content, 'html.parser')
-    table = soup.find('table', {'id': 'eventHistoryTable'})
+    from bs4 import BeautifulSoup
+    soup = BeautifulSoup(data['data'], 'html.parser')
+    rows = soup.find_all('tr', class_='js-event-item')
     
-    if not table:
-        logger.warning(f"No table found for {url}")
-        return pd.DataFrame()
-    
-    data = []
-    rows = table.find_all('tr')
-    for row in rows[1:7]:  # Get first 6 data rows
+    df_data = []
+    for row in rows[:6]:  # Get the latest 6 events
         cols = row.find_all('td')
-        if len(cols) >= 6:
-            date = cols[0].text.strip()
-            time = cols[1].text.strip()
-            actual = cols[2].text.strip()
-            forecast = cols[3].text.strip()
-            previous = cols[4].text.strip()
-            data.append([date, time, actual, forecast, previous])
+        if len(cols) >= 5:
+            df_data.append({
+                'Date': cols[0].text.strip(),
+                'Time': cols[1].text.strip(),
+                'Actual': cols[2].text.strip(),
+                'Forecast': cols[3].text.strip(),
+                'Previous': cols[4].text.strip()
+            })
     
-    if not data:
-        logger.warning(f"No data rows found for {url}")
-        return pd.DataFrame()
+    df = pd.DataFrame(df_data)
+    df['Indicator'] = soup.find('h1').text.strip() if soup.find('h1') else url.split('/')[-1].replace('-', ' ').title()
     
-    df = pd.DataFrame(data, columns=['Date', 'Time', 'Actual', 'Forecast', 'Previous'])
-    indicator_element = soup.find('h1', {'class': 'ecTitle'})
-    df['Indicator'] = indicator_element.text.strip() if indicator_element else 'Unknown Indicator'
-    
-    logger.info(f"Successfully scraped data for {url}")
     return df
 
 def main():
