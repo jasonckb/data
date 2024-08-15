@@ -2,6 +2,11 @@ import streamlit as st
 import investpy
 import pandas as pd
 from datetime import datetime, timedelta
+import logging
+
+# Set up logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 # Define the list of economic indicators we want to fetch
 indicators = [
@@ -27,9 +32,11 @@ def fetch_economic_data(indicator, country="United States", n_results=6):
             countries=[country],
             from_date=from_date,
             to_date=to_date,
-            importance=['high', 'medium'],
             categories=[indicator]
         )
+        
+        # Filter for high and medium importance events
+        data = data[data['importance'].isin(['high', 'medium'])]
         
         # Sort by date (most recent first) and get the last n_results
         data = data.sort_values('date', ascending=False).head(n_results)
@@ -46,7 +53,7 @@ def fetch_economic_data(indicator, country="United States", n_results=6):
         
         return data[['date', 'time', 'Actual', 'Forecast', 'Previous', 'Indicator']]
     except Exception as e:
-        st.error(f"Error fetching data for {indicator}: {str(e)}")
+        logger.error(f"Error fetching data for {indicator}: {str(e)}")
         return pd.DataFrame()
 
 def main():
