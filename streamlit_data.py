@@ -1,8 +1,8 @@
 import streamlit as st
 import requests
-from bs4 import BeautifulSoup
 import pandas as pd
 import time
+from datetime import datetime, timedelta
 
 # The URLs of the webpages you want to scrape
 urls = ["https://www.investing.com/economic-calendar/unemployment-rate-300",
@@ -39,48 +39,59 @@ urls = ["https://www.investing.com/economic-calendar/unemployment-rate-300",
         ]
 
 
-def fetch_page_content(url):
-    headers = {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+def fetch_data_from_api(event_id):
+    url = "https://api.investing.com/api/events/events"
+    
+    end_date = datetime.now()
+    start_date = end_date - timedelta(days=365)  # Get data for the past year
+    
+    params = {
+        "eventIds": event_id,
+        "timeFrom": int(start_date.timestamp()),
+        "timeTo": int(end_date.timestamp()),
+        "timeframe": "DAILY",
+        "userTimeZoneOffset": -240,  # Adjust this based on your timezone
+        "followingType": "specified"
     }
+    
+    headers = {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36",
+        "Accept": "application/json",
+        "X-Requested-With": "XMLHttpRequest"
+    }
+    
     try:
-        response = requests.get(url, headers=headers)
+        response = requests.get(url, params=params, headers=headers)
         response.raise_for_status()
-        return response.text
+        return response.json()
     except requests.RequestException as e:
-        st.error(f"Error fetching {url}: {e}")
+        st.error(f"Error fetching data for event {event_id}: {e}")
         return None
 
 @st.cache_data
 def scrape_investing_com(url):
-    content = fetch_page_content(url)
+    event_id = url.split('-')[-1]
+    data = fetch_data_from_api(event_id)
     
-    if content is None:
+    if not data or 'data' not in data:
         return pd.DataFrame()
     
-    soup = BeautifulSoup(content, 'html.parser')
-    table = soup.find('table', {'id': 'eventHistoryTable'})
-    
-    if not table:
+    events = data['data']
+    if not events:
         return pd.DataFrame()
     
-    data = []
-    rows = table.find_all('tr')
-    for row in rows[1:7]:  # Get first 6 data rows
-        cols = row.find_all('td')
-        if len(cols) >= 6:
-            date = cols[0].text.strip()
-            time = cols[1].text.strip()
-            actual = cols[2].text.strip()
-            forecast = cols[3].text.strip()
-            previous = cols[4].text.strip()
-            data.append([date, time, actual, forecast, previous])
+    df_data = []
+    for event in events[:6]:  # Get the latest 6 events
+        df_data.append({
+            'Date': datetime.fromtimestamp(event['date']).strftime('%Y-%m-%d'),
+            'Time': datetime.fromtimestamp(event['date']).strftime('%H:%M'),
+            'Actual': event.get('actual', ''),
+            'Forecast': event.get('forecast', ''),
+            'Previous': event.get('previous', ''),
+            'Indicator': event['name']
+        })
     
-    df = pd.DataFrame(data, columns=['Date', 'Time', 'Actual', 'Forecast', 'Previous'])
-    indicator_element = soup.find('h1', {'class': 'ecTitle'})
-    df['Indicator'] = indicator_element.text.strip() if indicator_element else 'Unknown Indicator'
-    
-    return df
+    return pd.DataFrame(df_data)
 
 def main():
     st.title("US Economic Data Dashboard")
