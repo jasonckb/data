@@ -349,28 +349,23 @@ def main():
                 # Add analyst ratings
                 st.markdown("<h3>Analyst Ratings:</h3>", unsafe_allow_html=True)
                 try:
-                    ratings = get_analyst_ratings(st.session_state.formatted_ticker)
-                    if ratings:
-                        st.write(f"Earnings Estimate: ${ratings.get('earnings_estimate', 'N/A')}")
-                        st.write(f"Revenue Estimate: ${ratings.get('revenue_estimate', 'N/A')}")
-                        st.write(f"EPS Estimate: ${ratings.get('eps_estimate', 'N/A')}")
-                        st.write(f"EPS Actual: ${ratings.get('eps_actual', 'N/A')}")
-                    else:
-                        st.write("No analyst ratings available.")
-
                     recommendations = get_analyst_recommendations(st.session_state.formatted_ticker)
                     if recommendations:
-                        st.subheader("Recent Upgrades")
-                        st.dataframe(recommendations['upgrades'])
-
-                        st.subheader("Recent Downgrades")
-                        st.dataframe(recommendations['downgrades'])
-
+                        # Summary box
                         st.subheader("Recommendation Summary")
                         summary = recommendations['summary']
-                        st.write(f"Buy: {summary['Buy']}")
-                        st.write(f"Hold: {summary['Hold']}")
-                        st.write(f"Sell: {summary['Sell']}")
+                        col1, col2, col3 = st.columns(3)
+                        col1.metric("Buy", summary.get('Buy', 'N/A'))
+                        col2.metric("Hold", summary.get('Hold', 'N/A'))
+                        col3.metric("Sell", summary.get('Sell', 'N/A'))
+
+                        # Recent changes
+                        st.subheader("Recent Changes in Analyst Ratings")
+                        changes = recommendations['changes']
+                        if not changes.empty:
+                            st.dataframe(changes)
+                        else:
+                            st.write("No recent changes in analyst ratings.")
                     else:
                         st.write("No analyst recommendations available.")
                 except Exception as e:
