@@ -267,7 +267,31 @@ def get_analyst_ratings(ticker):
                 latest_quarter = list(quarterly_data.keys())[0]
                 return quarterly_data[latest_quarter]
     
-    return None   
+    return None
+
+def get_analyst_recommendations(ticker):
+    stock = yf.Ticker(ticker)
+    recommendations = stock.recommendations
+    if recommendations is not None and not recommendations.empty:
+        recent_recommendations = recommendations.tail(10)  # Get last 10 recommendations
+        upgrades = recent_recommendations[recent_recommendations['To Grade'] > recent_recommendations['From Grade']]
+        downgrades = recent_recommendations[recent_recommendations['To Grade'] < recent_recommendations['From Grade']]
+        
+        latest_recommendations = recommendations.iloc[-1]
+        buy_count = latest_recommendations.get('Buy', 0)
+        hold_count = latest_recommendations.get('Hold', 0)
+        sell_count = latest_recommendations.get('Sell', 0)
+        
+        return {
+            'upgrades': upgrades,
+            'downgrades': downgrades,
+            'summary': {
+                'Buy': buy_count,
+                'Hold': hold_count,
+                'Sell': sell_count
+            }
+        }
+    return None  
 
 def main():
     st.title("Stock Fundamentals with Key Levels by JC")
@@ -333,6 +357,22 @@ def main():
                         st.write(f"EPS Actual: ${ratings.get('eps_actual', 'N/A')}")
                     else:
                         st.write("No analyst ratings available.")
+
+                    recommendations = get_analyst_recommendations(st.session_state.formatted_ticker)
+                    if recommendations:
+                        st.subheader("Recent Upgrades")
+                        st.dataframe(recommendations['upgrades'])
+
+                        st.subheader("Recent Downgrades")
+                        st.dataframe(recommendations['downgrades'])
+
+                        st.subheader("Recommendation Summary")
+                        summary = recommendations['summary']
+                        st.write(f"Buy: {summary['Buy']}")
+                        st.write(f"Hold: {summary['Hold']}")
+                        st.write(f"Sell: {summary['Sell']}")
+                    else:
+                        st.write("No analyst recommendations available.")
                 except Exception as e:
                     st.error(f"Error fetching analyst ratings: {str(e)}")
 
