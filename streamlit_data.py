@@ -107,7 +107,7 @@ def process_data(df):
                 latest['Vs Forecast'],
                 latest['Forecast']
             ]
-            row.extend([d['Actual'] if i < len(sorted_data) else '' for i in range(5)])
+            row.extend([d.get('Actual', '') if i < len(sorted_data) else '' for i in range(5)])
             processed_data.append(row)
 
     return processed_data
