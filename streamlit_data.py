@@ -6,6 +6,7 @@ import time
 import streamlit as st
 import pandas as pd
 from datetime import datetime, timedelta
+from dateutil import parser
 
 st.set_page_config(page_title="US Economic Data Scraper and Analyzer", layout="wide")
 st.title("US Economic Data Scraper and Analyzer")
@@ -100,7 +101,12 @@ def process_data(df):
     for _, row in df.iterrows():
         indicator = row['Title'].split(' - ')[0]
         if indicator in indicators:
-            date = datetime.strptime(row['Date'], "%b %d, %Y")
+            try:
+                date = parser.parse(row['Date'])
+            except ValueError:
+                st.warning(f"無法解析日期: {row['Date']} 對於指標: {indicator}")
+                continue
+
             forecast = row['Forecast']
             actual = row['Actual']
             
@@ -131,7 +137,6 @@ def process_data(df):
             processed_data.append(row)
 
     return processed_data
-
 def main():
     if st.button("Analyze Data"):
         with st.spinner("Analyzing data... This may take a few minutes."):
