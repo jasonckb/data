@@ -220,10 +220,6 @@ def main():
                         st.dataframe(df)
                     
                     processed_data, indicators = process_data(df)
-
-    if __name__ == "__main__":
-    main()
-
                     
                     if processed_data:
                         st.success("數據分析成功！")
@@ -236,3 +232,58 @@ def main():
             except Exception as e:
                 st.error(f"處理過程中發生錯誤: {str(e)}")
                 logging.exception("處理過程中發生錯誤")
+
+    if st.session_state.processed_df is not None:
+        st.subheader("處理後的數據")
+        
+        def color_rows(row):
+            if row.name < 5:  # 就業數據
+                return ['background-color: #FFFFE0'] * len(row)
+            elif 5 <= row.name < 11:  # 通貨膨脹數據
+                return ['background-color: #E6E6FA'] * len(row)
+            else:  # 其他經濟指標
+                return ['background-color: #E6F3FF'] * len(row)
+        
+        styled_df = st.session_state.processed_df.style.apply(color_rows, axis=1)
+        styled_df = styled_df.apply(lambda x: ['color: red' if x['與預測比較'] == '較差' 
+                                               else 'color: green' if x['與預測比較'] == '較好' 
+                                               else '' for i in x], axis=1)
+        
+        # 創建兩列佈局
+        col1, col2 = st.columns([3, 2])
+        
+        with col1:
+            # 顯示數據表格
+            st.dataframe(styled_df)
+        
+        with col2:
+            # 創建一個空的佔位符來顯示圖表
+            chart_placeholder = st.empty()
+        
+        # 為每個指標創建一個按鈕在側邊欄
+        st.sidebar.header("選擇指標")
+        for index, row in st.session_state.processed_df.iterrows():
+            if st.sidebar.button(row['指標']):
+                # 獲取該指標的所有數據
+                indicator_data = st.session_state.indicators.get(row['指標'], [])
+                indicator_data = [d for d in indicator_data if d.get('Actual')]
+                if indicator_data:
+                    # 創建並顯示圖表
+                    fig = create_chart(indicator_data, row['指標'])
+                    chart_placeholder.plotly_chart(fig)
+                else:
+                    chart_placeholder.warning(f"沒有找到 {row['指標']} 的有效數據")
+        
+        csv = st.session_state.processed_df.to_csv(index=False).encode('utf-8')
+        st.download_button(
+            label="下載處理後的數據為CSV",
+            data=csv,
+            file_name="processed_us_economic_data.csv",
+            mime="text/csv",
+        )
+
+    st.warning("注意：此爬蟲和分析器僅用於教育目的。請尊重網站的服務條款和robots.txt文件。")
+
+if __name__ == "__main__":
+    main()
+
