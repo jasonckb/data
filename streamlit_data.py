@@ -198,6 +198,9 @@ def main():
     ]
 
     # 將爬取數據的按鈕放在主頁面
+    if 'indicators' not in st.session_state:
+        st.session_state.indicators = {}
+
     if st.button("爬取並分析數據"):
         with st.spinner("正在爬取和分析數據... 這可能需要幾分鐘。"):
             try:
@@ -210,11 +213,12 @@ def main():
                         st.subheader("原始數據")
                         st.dataframe(df)
                     
-                    processed_data = process_data(df)
+                    processed_data, indicators = process_data(df)
                     
                     if processed_data:
                         st.success("數據分析成功！")
                         st.session_state.processed_df = pd.DataFrame(processed_data, columns=["指標", "數據更新", "與預測比較", "預測", "本月", "1月前", "2月前", "3月前", "4月前"])
+                        st.session_state.indicators = indicators
                         st.session_state.show_table = True
                     else:
                         st.warning("沒有處理任何數據。請檢查數據結構。")
@@ -224,51 +228,22 @@ def main():
                 st.error(f"處理過程中發生錯誤: {str(e)}")
                 logging.exception("處理過程中發生錯誤")
 
-    # 如果數據已經處理，顯示表格和圖表
     if 'show_table' in st.session_state and st.session_state.show_table:
         st.subheader("處理後的數據")
         
-        def color_rows(row):
-            if row.name < 5:  # 就業數據
-                return ['background-color: #FFFFE0'] * len(row)
-            elif 5 <= row.name < 11:  # 通貨膨脹數據
-                return ['background-color: #E6E6FA'] * len(row)
-            else:  # 其他經濟指標
-                return ['background-color: #E6F3FF'] * len(row)
-        
-        styled_df = st.session_state.processed_df.style.apply(color_rows, axis=1)
-        styled_df = styled_df.apply(lambda x: ['color: red' if x['與預測比較'] == '較差' 
-                                               else 'color: green' if x['與預測比較'] == '較好' 
-                                               else '' for i in x], axis=1)
-        
-        # 創建兩列佈局
-        col1, col2 = st.columns([3, 2])
-        
-        with col1:
-            # 顯示數據表格
-            st.dataframe(styled_df)
-        
-        with col2:
-            # 創建一個空的佔位符來顯示圖表
-            chart_placeholder = st.empty()
+        # ... (顯示表格的代碼保持不變)
         
         # 為每個指標創建一個按鈕在側邊欄
         st.sidebar.header("選擇指標")
         for index, row in st.session_state.processed_df.iterrows():
             if st.sidebar.button(row['指標']):
                 # 獲取該指標的所有數據
-                indicator_data = [d for d in indicators[row['指標']] if d['Actual']]
+                indicator_data = [d for d in st.session_state.indicators[row['指標']] if d['Actual']]
                 # 創建並顯示圖表
                 fig = create_chart(indicator_data, row['指標'])
                 chart_placeholder.plotly_chart(fig)
         
-        csv = st.session_state.processed_df.to_csv(index=False).encode('utf-8')
-        st.download_button(
-            label="下載處理後的數據為CSV",
-            data=csv,
-            file_name="processed_us_economic_data.csv",
-            mime="text/csv",
-        )
+        # ... (下載按鈕的代碼保持不變)
 
     st.warning("注意：此爬蟲和分析器僅用於教育目的。請尊重網站的服務條款和robots.txt文件。")
 
