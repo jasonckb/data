@@ -141,8 +141,7 @@ def process_data(df):
 def create_chart(data, indicator):
     dates = [d['Date'] for d in data]
     actuals = [float(d['Actual'].rstrip('K%M')) if d['Actual'] else None for d in data]
-    forecasts = [float(d['Forecast'].rstrip('K%M')) if d['Forecast'] else None for d in data]
-
+    
     fig = make_subplots(specs=[[{"secondary_y": True}]])
 
     fig.add_trace(
@@ -150,16 +149,14 @@ def create_chart(data, indicator):
         secondary_y=False,
     )
 
-    if indicator == "United States ADP Nonfarm Employment Change":
-        # 對於 ADP，使用水平線作為預測
+    # 檢查最新的預測值
+    latest_forecast = next((float(d['Forecast'].rstrip('K%M')) for d in data if d['Forecast']), None)
+
+    if latest_forecast is not None:
+        # 如果有預測值，繪製水平預測線
         fig.add_trace(
-            go.Scatter(x=dates, y=[144] * len(dates), name="預測值", mode="lines", line=dict(dash="dash", color="gray")),
-            secondary_y=False,
-        )
-    elif any(forecasts):
-        # 只有在有預測值時才添加預測線
-        fig.add_trace(
-            go.Scatter(x=dates, y=forecasts, name="預測值", mode="lines", line=dict(dash="dash", color="gray")),
+            go.Scatter(x=dates, y=[latest_forecast] * len(dates), name="預測值", 
+                       mode="lines", line=dict(dash="dash", color="gray")),
             secondary_y=False,
         )
 
