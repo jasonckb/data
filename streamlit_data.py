@@ -7,24 +7,26 @@ import time
 st.set_page_config(page_title="US Economic Data Scraper", layout="wide")
 st.title("US Economic Data Scraper")
 
-@st.cache_data
 def scrape_data(urls):
     data = []
     for url in urls:
-        response = requests.get(url)
-        soup = BeautifulSoup(response.content, 'html.parser')
-        title = soup.title.string
-        rows = soup.find_all('tr')
-        row_counter = 0
-        
-        for row in rows:
-            if row_counter >= 6:
-                break
-            cols = row.find_all('td')
-            if len(cols) == 6:
-                cols_text = [col.text.strip() for col in cols]
-                data.append([title] + cols_text)
-                row_counter += 1
+        try:
+            response = requests.get(url)
+            soup = BeautifulSoup(response.content, 'html.parser')
+            title = soup.title.string if soup.title else "No title"
+            rows = soup.find_all('tr')
+            row_counter = 0
+            
+            for row in rows:
+                if row_counter >= 6:
+                    break
+                cols = row.find_all('td')
+                if len(cols) == 6:
+                    cols_text = [col.text.strip() for col in cols]
+                    data.append([title] + cols_text)
+                    row_counter += 1
+        except Exception as e:
+            st.error(f"Error scraping {url}: {str(e)}")
     
     return pd.DataFrame(data, columns=['Title', 'Date', 'Time', 'Actual', 'Forecast', 'Previous', 'Importance'])
 
@@ -65,15 +67,18 @@ if st.button("Scrape Data"):
     with st.spinner("Scraping data... This may take a few minutes."):
         df = scrape_data(urls)
     
-    st.success("Data scraped successfully!")
-    st.dataframe(df)
-    
-    csv = df.to_csv(index=False)
-    st.download_button(
-        label="Download data as CSV",
-        data=csv,
-        file_name="us_economic_data.csv",
-        mime="text/csv",
-    )
+    if not df.empty:
+        st.success("Data scraped successfully!")
+        st.dataframe(df)
+        
+        csv = df.to_csv(index=False).encode('utf-8')
+        st.download_button(
+            label="Download data as CSV",
+            data=csv,
+            file_name="us_economic_data.csv",
+            mime="text/csv",
+        )
+    else:
+        st.warning("No data was scraped. Please check the URLs and try again.")
 
 st.warning("Note: This scraper is for educational purposes only. Please respect the website's terms of service and robots.txt file.")
