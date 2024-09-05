@@ -64,7 +64,6 @@ def process_data(df):
         "United States Core Durable Goods Orders MoM": []
     }
 
-    # 定義一個列表，包含較低數值被視為更好的指標
     lower_is_better = [
         "United States Unemployment Rate",
         "United States Core PCE Price Index YoY",
@@ -87,7 +86,7 @@ def process_data(df):
                 return datetime.strptime(match.group(1), '%b %d, %Y')
         return None
 
-     for _, row in df.iterrows():
+    for _, row in df.iterrows():
         indicator = row['Title'].split(' - ')[0]
         if indicator in indicators:
             date = parse_date(row['Date'])
