@@ -92,8 +92,8 @@ def process_data(df):
                 logging.warning(f"無法解析日期: {row['Date']} 對於指標: {indicator}")
                 continue
 
-            forecast = row.get('Forecast', '')
-            actual = row.get('Actual', '')
+            forecast = row.get('Forecast', '').strip()
+            actual = row.get('Actual', '').strip()
             
             vs_forecast = ''
             if actual and forecast:
@@ -110,8 +110,8 @@ def process_data(df):
             indicators[indicator].append({
                 "Date": date,
                 "Vs Forecast": vs_forecast,
-                "Forecast": forecast,
-                "Actual": actual
+                "Forecast": forecast if forecast else None,
+                "Actual": actual if actual else None
             })
 
     processed_data = []
@@ -123,7 +123,7 @@ def process_data(df):
                 indicator,
                 latest['Date'].strftime("%b %d, %Y (%b)"),
                 latest['Vs Forecast'],
-                latest['Forecast']
+                latest['Forecast'] if latest['Forecast'] else ''
             ]
             actuals = []
             for i in range(5):
@@ -136,6 +136,7 @@ def process_data(df):
         else:
             logging.warning(f"沒有數據用於指標: {indicator}")
 
+    logging.info(f"處理了 {len(processed_data)} 個指標的數據")
     return processed_data, indicators    
 
 def create_chart(data, indicator):
