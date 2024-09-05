@@ -142,7 +142,13 @@ def process_data(df):
 def create_chart(data, indicator):
     dates = [d['Date'] for d in data]
     actuals = [float(d['Actual'].rstrip('K%M')) if d['Actual'] and d['Actual'].strip() != '' else None for d in data]
+    forecasts = [float(d['Forecast'].rstrip('K%M')) if d['Forecast'] and d['Forecast'].strip() != '' else None for d in data]
     
+    logging.info(f"指標 {indicator} 的數據:")
+    logging.info(f"日期: {dates}")
+    logging.info(f"實際值: {actuals}")
+    logging.info(f"預測值: {forecasts}")
+
     fig = make_subplots(specs=[[{"secondary_y": True}]])
 
     fig.add_trace(
@@ -150,15 +156,19 @@ def create_chart(data, indicator):
         secondary_y=False,
     )
 
-    # 檢查是否有任何有效的預測值
-    valid_forecasts = [float(d['Forecast'].rstrip('K%M')) for d in data if d['Forecast'] and d['Forecast'].strip() != '']
-    if valid_forecasts:
-        latest_forecast = valid_forecasts[0]
-        fig.add_trace(
-            go.Scatter(x=dates, y=[latest_forecast] * len(dates), name="預測值", 
-                       mode="lines", line=dict(dash="dash", color="gray")),
-            secondary_y=False,
-        )
+    if any(forecasts):
+        latest_forecast = next((f for f in forecasts if f is not None), None)
+        if latest_forecast is not None:
+            fig.add_trace(
+                go.Scatter(x=dates, y=[latest_forecast] * len(dates), name="預測值", 
+                           mode="lines", line=dict(dash="dash", color="gray")),
+                secondary_y=False,
+            )
+            logging.info(f"繪製預測線，值為: {latest_forecast}")
+        else:
+            logging.info("沒有有效的預測值，不繪製預測線")
+    else:
+        logging.info("沒有預測值，不繪製預測線")
 
     fig.update_layout(
         title=indicator,
@@ -227,10 +237,11 @@ def main():
 
                         # 添加調試信息
                         st.write("數據預覽：")
-                        st.write(st.session_state.processed_df.head())
+                        st.write(st.session_state.processed_df)
                         st.write("指標數據示例：")
                         for indicator, data in st.session_state.indicators.items():
-                            st.write(f"{indicator}: {data[:2]}")  # 只顯示前兩個數據點
+                            st.write(f"{indicator}:")
+                            st.write(pd.DataFrame(data))
                             break  # 只顯示第一個指標的數據
 
                         st.session_state.show_table = True
