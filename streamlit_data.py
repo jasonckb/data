@@ -41,8 +41,6 @@ def process_data(df):
         "United States Average Hourly Earnings YoY": [],
         "United States ADP Nonfarm Employment Change": [],
         "United States JOLTS Job Openings": [],
-        "United States ISM Manufacturing PMI": [],
-        "United States ISM Non-Manufacturing PMI": [],
         "United States Core PCE Price Index YoY": [],
         "United States Core PCE Price Index MoM": [],
         "United States PCE Price Index YoY": [],
@@ -51,6 +49,8 @@ def process_data(df):
         "United States Consumer Price Index (CPI) YoY": [],
         "United States Core Producer Price Index (PPI) MoM": [],
         "United States Producer Price Index (PPI) MoM": [],
+        "United States ISM Manufacturing PMI": [],
+        "United States ISM Non-Manufacturing PMI": [],
         "United States Gross Domestic Product (GDP) Price Index QoQ": [],
         "United States Core Retail Sales MoM": [],
         "United States Retail Sales MoM": [],
@@ -60,8 +60,7 @@ def process_data(df):
         "United States CB Consumer Confidence": [],
         "United States Gross Domestic Product (GDP) QoQ": [],
         "United States Durable Goods Orders MoM": [],
-        "United States Core Durable Goods Orders MoM": [],
-        "United States Building Permits": []
+        "United States Core Durable Goods Orders MoM": []
     }
 
     def parse_date(date_str):
@@ -162,37 +161,41 @@ def main():
 
     if st.button("爬取並分析數據"):
         with st.spinner("正在爬取和分析數據... 這可能需要幾分鐘。"):
-            df = scrape_data(urls)
-            
-            if not df.empty:
-                st.success("數據爬取成功！")
-                st.subheader("原始數據")
-                st.dataframe(df)
+            try:
+                df = scrape_data(urls)
                 
-                processed_data = process_data(df)
-                
-                if processed_data:
-                    st.success("數據分析成功！")
-                    st.subheader("處理後的數據")
+                if not df.empty:
+                    st.success("數據爬取成功！")
+                    st.subheader("原始數據")
+                    st.dataframe(df)
                     
-                    columns = ["指標", "數據更新", "與預測比較", "預測", "0", "1", "2", "3", "4"]
-                    processed_df = pd.DataFrame(processed_data, columns=columns)
+                    processed_data = process_data(df)
                     
-                    st.dataframe(processed_df.style.apply(lambda x: ['background: pink' if x['與預測比較'] == '較差' 
-                                                                     else 'background: lightgreen' if x['與預測比較'] == '較好' 
-                                                                     else '' for i in x], axis=1))
-                    
-                    csv = processed_df.to_csv(index=False).encode('utf-8')
-                    st.download_button(
-                        label="下載處理後的數據為CSV",
-                        data=csv,
-                        file_name="processed_us_economic_data.csv",
-                        mime="text/csv",
-                    )
+                    if processed_data:
+                        st.success("數據分析成功！")
+                        st.subheader("處理後的數據")
+                        
+                        columns = ["指標", "數據更新", "與預測比較", "預測", "本月", "1月前", "2月前", "3月前", "4月前"]
+                        processed_df = pd.DataFrame(processed_data, columns=columns)
+                        
+                        st.dataframe(processed_df.style.apply(lambda x: ['background: pink' if x['與預測比較'] == '較差' 
+                                                                         else 'background: lightgreen' if x['與預測比較'] == '較好' 
+                                                                         else '' for i in x], axis=1))
+                        
+                        csv = processed_df.to_csv(index=False).encode('utf-8')
+                        st.download_button(
+                            label="下載處理後的數據為CSV",
+                            data=csv,
+                            file_name="processed_us_economic_data.csv",
+                            mime="text/csv",
+                        )
+                    else:
+                        st.warning("沒有處理任何數據。請檢查數據結構。")
                 else:
-                    st.warning("沒有處理任何數據。請檢查數據結構。")
-            else:
-                st.warning("沒有爬取到任何數據。請檢查URL並重試。")
+                    st.warning("沒有爬取到任何數據。請檢查URL並重試。")
+            except Exception as e:
+                st.error(f"處理過程中發生錯誤: {str(e)}")
+                logging.exception("處理過程中發生錯誤")
 
     st.warning("注意：此爬蟲和分析器僅用於教育目的。請尊重網站的服務條款和robots.txt文件。")
 
