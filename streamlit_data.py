@@ -28,6 +28,9 @@ def scrape_data(urls):
                 cols = row.find_all('td')
                 if len(cols) == 6:
                     cols_text = [col.text.strip() for col in cols]
+                    # 如果預測列為空，將其設置為 None
+                    if cols_text[3] == '':
+                        cols_text[3] = None
                     data.append([title] + cols_text)
                     row_counter += 1
         except Exception as e:
@@ -123,21 +126,20 @@ def process_data(df):
                 indicator,
                 latest['Date'].strftime("%b %d, %Y (%b)"),
                 latest['Vs Forecast'],
-                latest['Forecast'] if latest['Forecast'] else ''
+                latest['Forecast'] if latest['Forecast'] else 'None'
             ]
             actuals = []
             for i in range(5):
                 if i < len(sorted_data):
-                    actuals.append(sorted_data[i].get('Actual', ''))
+                    actuals.append(sorted_data[i].get('Actual') or 'None')
                 else:
-                    actuals.append('')
+                    actuals.append('None')
             row.extend(actuals)
             processed_data.append(row)
         else:
             logging.warning(f"沒有數據用於指標: {indicator}")
 
-    logging.info(f"處理了 {len(processed_data)} 個指標的數據")
-    return processed_data, indicators    
+    return processed_data, indicators
 
 def create_chart(data, indicator):
     dates = [d['Date'] for d in data]
