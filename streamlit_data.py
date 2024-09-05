@@ -87,41 +87,66 @@ if st.button("Scrape Data"):
 st.warning("Note: This scraper is for educational purposes only. Please respect the website's terms of service and robots.txt file.")
 
 # 處理數據函數
-def process_data(data, current_date):
+def process_data(df, current_date):
     processed_data = []
-    for row in data:
-        indicator, date_str, *values = row
-        date = datetime.strptime(date_str, "%b %d, %Y")
+    for _, row in df.iterrows():
+        indicator = row['Indicator']
+        date_str = row['Date']
+        try:
+            date = datetime.strptime(date_str, "%b %d, %Y")
+        except ValueError:
+            # 如果日期格式不匹配，跳過這一行
+            continue
+        
         if date > current_date:
             # 如果數據日期在未來，使用上個月的數據
-            values = values[1:] + [values[0]]
             date = date.replace(month=date.month-1)
         
-        forecast = values[1]
-        actual = values[0]
-        vs_forecast = "Better Off" if float(actual.rstrip('K%')) > float(forecast.rstrip('K%')) else "Worse Off"
+        forecast = row['Forecast']
+        actual = row['Actual']
         
-        processed_row = [indicator, date.strftime("%b %d, %Y"), vs_forecast] + values
+        try:
+            vs_forecast = "Better Off" if float(actual.rstrip('K%M')) > float(forecast.rstrip('K%M')) else "Worse Off"
+        except ValueError:
+            vs_forecast = "N/A"
+        
+        processed_row = [indicator, date.strftime("%b %d, %Y"), vs_forecast, forecast, actual, row['Previous']]
         processed_data.append(processed_row)
     
     return processed_data
 
 # 主應用
 def main():
-    # 獲取當前日期
-    current_date = datetime.now()
-    
-    # 生成模擬數據
-    raw_data = generate_mock_data()
-    
-    # 處理數據
-    processed_data = process_data(raw_data, current_date)
-    
-    # 創建 DataFrame
-    df = pd.DataFrame(processed_data, columns=["Indicator", "Data Update", "Vs Forecast", "Forecast", "0", "1", "2", "3", "4"])
-    
-    # 顯示表格
-    st.dataframe(df.style.apply(lambda x: ['background: pink' if x['Vs Forecast'] == 'Worse Off' else 'background: lightgreen' if x['Vs Forecast'] == 'Better Off' else '' for i in x], axis=1))
+    if st.button("Scrape and Analyze Data"):
+        with st.spinner("Scraping and analyzing data... This may take a few minutes."):
+            df = scrape_data(urls)
+            
+            if not df.empty:
+                st.success("Data scraped successfully!")
+                
+                # 獲取當前日期
+                current_date = datetime.now()
+                
+                # 處理數據
+                processed_data = process_data(df, current_date)
+                
+                # 創建 DataFrame
+                processed_df = pd.DataFrame(processed_data, columns=["Indicator", "Data Update", "Vs Forecast", "Forecast", "Actual", "Previous"])
+                
+                # 顯示表格
+                st.dataframe(processed_df.style.apply(lambda x: ['background: pink' if x['Vs Forecast'] == 'Worse Off' else 'background: lightgreen' if x['Vs Forecast'] == 'Better Off' else '' for i in x], axis=1))
+                
+                csv = processed_df.to_csv(index=False).encode('utf-8')
+                st.download_button(
+                    label="Download processed data as CSV",
+                    data=csv,
+                    file_name="processed_us_economic_data.csv",
+                    mime="text/csv",
+                )
+            else:
+                st.warning("No data was scraped. Please check the URLs and try again.")
+
+    st.warning("Note: This scraper is for educational purposes only. Please respect the website's terms of service and robots.txt file.")
 
 if __name__ == "__main__":
     main()
