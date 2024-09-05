@@ -59,6 +59,17 @@ def process_data(df):
         "United States Core Durable Goods Orders MoM": []
     }
 
+    # 定義一個列表，包含較低數值被視為更好的指標
+    lower_is_better = [
+        "United States Unemployment Rate",
+        "United States Core PCE Price Index YoY",
+        "United States Core PCE Price Index MoM",
+        "United States Consumer Price Index (CPI) MoM",
+        "United States Core Consumer Price Index (CPI) YoY",
+        "United States Core Producer Price Index (PPI) MoM",
+        "United States Producer Price Index (PPI) MoM"
+    ]
+
     def parse_date(date_str):
         patterns = [
             r'(\w+ \d{2}, \d{4}) \((\w+)\)',
@@ -87,7 +98,10 @@ def process_data(df):
                 try:
                     actual_value = float(actual.rstrip('K%M'))
                     forecast_value = float(forecast.rstrip('K%M'))
-                    vs_forecast = "較好" if actual_value > forecast_value else "較差" if actual_value < forecast_value else "持平"
+                    if indicator in lower_is_better:
+                        vs_forecast = "較好" if actual_value < forecast_value else "較差" if actual_value > forecast_value else "持平"
+                    else:
+                        vs_forecast = "較好" if actual_value > forecast_value else "較差" if actual_value < forecast_value else "持平"
                 except ValueError:
                     vs_forecast = ''
             
@@ -121,6 +135,7 @@ def process_data(df):
             logging.warning(f"沒有數據用於指標: {indicator}")
 
     logging.info(f"處理了 {len(processed_data)} 個指標的數據")
+    return processed_data
     return processed_data
 
 def main():
