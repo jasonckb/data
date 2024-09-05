@@ -5,6 +5,8 @@ from bs4 import BeautifulSoup
 from datetime import datetime
 import re
 import logging
+import plotly.graph_objects as go
+from plotly.subplots import make_subplots
 
 logging.basicConfig(level=logging.INFO)
 
@@ -138,6 +140,35 @@ def process_data(df):
     return processed_data
     return processed_data
 
+def create_chart(data, indicator):
+    dates = [d['Date'] for d in data]
+    actuals = [float(d['Actual'].rstrip('K%M')) if d['Actual'] else None for d in data]
+    forecasts = [float(d['Forecast'].rstrip('K%M')) if d['Forecast'] else None for d in data]
+
+    fig = make_subplots(specs=[[{"secondary_y": True}]])
+
+    fig.add_trace(
+        go.Scatter(x=dates, y=actuals, name="實際值", mode="lines+markers"),
+        secondary_y=False,
+    )
+
+    if any(forecasts):
+        fig.add_trace(
+            go.Scatter(x=dates, y=forecasts, name="預測值", mode="lines", line=dict(dash="dash", color="gray")),
+            secondary_y=False,
+        )
+
+    fig.update_layout(
+        title=indicator,
+        xaxis_title="日期",
+        yaxis_title="值",
+        legend_title="圖例",
+        height=400,
+        width=600
+    )
+
+    return fig
+    
 def main():
     st.title("美國經濟數據分析器")
 
@@ -174,7 +205,6 @@ def main():
                 if not df.empty:
                     st.success("數據爬取成功！")
                     
-                    # 使用 expander 來顯示原始數據
                     with st.expander("點擊查看原始數據"):
                         st.subheader("原始數據")
                         st.dataframe(df)
@@ -201,7 +231,25 @@ def main():
                                                                else 'color: green' if x['與預測比較'] == '較好' 
                                                                else '' for i in x], axis=1)
                         
-                        st.dataframe(styled_df)
+                        # 創建兩列佈局
+                        col1, col2 = st.columns([3, 2])
+                        
+                        with col1:
+                            # 顯示數據表格
+                            st.dataframe(styled_df)
+                        
+                        with col2:
+                            # 創建一個空的佔位符來顯示圖表
+                            chart_placeholder = st.empty()
+                        
+                        # 為每個指標創建一個按鈕
+                        for index, row in processed_df.iterrows():
+                            if st.button(row['指標']):
+                                # 獲取該指標的所有數據
+                                indicator_data = [d for d in indicators[row['指標']] if d['Actual']]
+                                # 創建並顯示圖表
+                                fig = create_chart(indicator_data, row['指標'])
+                                chart_placeholder.plotly_chart(fig)
                         
                         csv = processed_df.to_csv(index=False).encode('utf-8')
                         st.download_button(
