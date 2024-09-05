@@ -98,7 +98,7 @@ def process_data(df):
             actual = row.get('Actual', '').strip()
             
             vs_forecast = ''
-            if actual and forecast:
+            if actual and forecast and forecast != '-':
                 try:
                     actual_value = float(actual.rstrip('K%M'))
                     forecast_value = float(forecast.rstrip('K%M'))
@@ -112,7 +112,7 @@ def process_data(df):
             indicators[indicator].append({
                 "Date": date,
                 "Vs Forecast": vs_forecast,
-                "Forecast": forecast if forecast else None,
+                "Forecast": forecast if forecast and forecast != '-' else None,
                 "Actual": actual if actual else None
             })
 
@@ -143,6 +143,7 @@ def process_data(df):
 def create_chart(data, indicator):
     dates = [d['Date'] for d in data]
     actuals = [float(d['Actual'].rstrip('K%M')) if d['Actual'] and d['Actual'] not in ['', 'None'] else None for d in data]
+    forecasts = [float(d['Forecast'].rstrip('K%M')) if d['Forecast'] and d['Forecast'] not in ['', 'None'] else None for d in data]
     
     fig = make_subplots(specs=[[{"secondary_y": True}]])
 
@@ -152,19 +153,22 @@ def create_chart(data, indicator):
     )
 
     # 只獲取最新的預測值
-    latest_forecast = next((float(d['Forecast'].rstrip('K%M')) for d in data if d['Forecast'] and d['Forecast'] not in ['', 'None']), None)
+    latest_forecast = next((f for f in forecasts if f is not None), None)
+    latest_date = dates[0]
 
     if latest_forecast is not None:
-        # 只在最新日期繪製預測點
-        latest_date = dates[0]
+        # 只從最新日期開始繪製預測線
+        forecast_dates = [d for d in dates if d <= latest_date]
+        forecast_values = [latest_forecast] * len(forecast_dates)
+        
         fig.add_trace(
-            go.Scatter(x=[latest_date], y=[latest_forecast], name="預測值", 
-                       mode="markers", marker=dict(symbol="star", size=10, color="red")),
+            go.Scatter(x=forecast_dates, y=forecast_values, name="預測值", 
+                       mode="lines", line=dict(dash="dash", color="gray")),
             secondary_y=False,
         )
-        logging.info(f"繪製最新預測點，值為: {latest_forecast}")
+        logging.info(f"繪製預測線，值為: {latest_forecast}")
     else:
-        logging.info("沒有有效的預測值，不繪製預測點")
+        logging.info("沒有有效的預測值，不繪製預測線")
 
     fig.update_layout(
         title=indicator,
