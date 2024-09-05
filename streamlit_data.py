@@ -141,7 +141,7 @@ def process_data(df):
 
 def create_chart(data, indicator):
     dates = [d['Date'] for d in data]
-    actuals = [float(d['Actual'].rstrip('K%M')) if d['Actual'] else None for d in data]
+    actuals = [float(d['Actual'].rstrip('K%M')) if d['Actual'] and d['Actual'].strip() != '' else None for d in data]
     
     fig = make_subplots(specs=[[{"secondary_y": True}]])
 
@@ -150,22 +150,15 @@ def create_chart(data, indicator):
         secondary_y=False,
     )
 
-    # 檢查最新的預測值
-    latest_data = data[0]  # Assuming data is sorted with the most recent first
-    latest_forecast = latest_data.get('Forecast')
-    latest_date = latest_data['Date']
-
-    if latest_forecast and latest_forecast.strip():
-        try:
-            forecast_value = float(latest_forecast.rstrip('K%M'))
-            # 只在最新日期添加預測點
-            fig.add_trace(
-                go.Scatter(x=[latest_date], y=[forecast_value], name="預測值", 
-                           mode="markers", marker=dict(symbol="star", size=10, color="red")),
-                secondary_y=False,
-            )
-        except ValueError:
-            logging.warning(f"無法將預測值 '{latest_forecast}' 轉換為浮點數")
+    # 檢查是否有任何有效的預測值
+    valid_forecasts = [float(d['Forecast'].rstrip('K%M')) for d in data if d['Forecast'] and d['Forecast'].strip() != '']
+    if valid_forecasts:
+        latest_forecast = valid_forecasts[0]
+        fig.add_trace(
+            go.Scatter(x=dates, y=[latest_forecast] * len(dates), name="預測值", 
+                       mode="lines", line=dict(dash="dash", color="gray")),
+            secondary_y=False,
+        )
 
     fig.update_layout(
         title=indicator,
@@ -231,6 +224,16 @@ def main():
                         st.success("數據分析成功！")
                         st.session_state.processed_df = pd.DataFrame(processed_data, columns=["指標", "數據更新", "與預測比較", "預測", "本月", "1月前", "2月前", "3月前", "4月前"])
                         st.session_state.indicators = indicators
+
+                        # 添加調試信息
+                        st.write("數據預覽：")
+                        st.write(st.session_state.processed_df.head())
+                        st.write("指標數據示例：")
+                        for indicator, data in st.session_state.indicators.items():
+                            st.write(f"{indicator}: {data[:2]}")  # 只顯示前兩個數據點
+                            break  # 只顯示第一個指標的數據
+
+                        st.session_state.show_table = True
                     else:
                         st.warning("沒有處理任何數據。請檢查數據結構。")
                 else:
