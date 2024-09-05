@@ -150,8 +150,7 @@ def process_data(df):
 
     return processed_data
 def main():
-    st.set_page_config(page_title="US Economic Data Analyzer", layout="wide")
-    st.title("US Economic Data Analyzer")
+    st.title("美國經濟數據分析器")
 
     urls = [
         "https://www.investing.com/economic-calendar/unemployment-rate-300",
@@ -186,41 +185,41 @@ def main():
         "https://www.investing.com/economic-calendar/personal-income-234"
     ]
 
-    if st.button("Scrape and Analyze Data"):
-        with st.spinner("Scraping and analyzing data... This may take a few minutes."):
+    if st.button("爬取並分析數據"):
+        with st.spinner("正在爬取和分析數據... 這可能需要幾分鐘。"):
             df = scrape_data(urls)
             
             if not df.empty:
-                st.success("Data scraped successfully!")
-                st.subheader("Raw Data")
+                st.success("數據爬取成功！")
+                st.subheader("原始數據")
                 st.dataframe(df)
                 
                 processed_data = process_data(df)
                 
                 if processed_data:
-                    st.success("Data analyzed successfully!")
-                    st.subheader("Processed Data")
+                    st.success("數據分析成功！")
+                    st.subheader("處理後的數據")
                     
-                    columns = ["Indicator", "Data Update", "Vs Forecast", "Forecast", "0", "1", "2", "3", "4"]
+                    columns = ["指標", "數據更新", "與預測比較", "預測", "0", "1", "2", "3", "4"]
                     processed_df = pd.DataFrame(processed_data, columns=columns)
                     
-                    st.dataframe(processed_df.style.apply(lambda x: ['background: pink' if x['Vs Forecast'] == 'Worse Off' 
-                                                                     else 'background: lightgreen' if x['Vs Forecast'] == 'Better Off' 
+                    st.dataframe(processed_df.style.apply(lambda x: ['background: pink' if x['與預測比較'] == '較差' 
+                                                                     else 'background: lightgreen' if x['與預測比較'] == '較好' 
                                                                      else '' for i in x], axis=1))
                     
                     csv = processed_df.to_csv(index=False).encode('utf-8')
                     st.download_button(
-                        label="Download processed data as CSV",
+                        label="下載處理後的數據為CSV",
                         data=csv,
                         file_name="processed_us_economic_data.csv",
                         mime="text/csv",
                     )
                 else:
-                    st.warning("No data was processed. Please check the data structure.")
+                    st.warning("沒有處理任何數據。請檢查數據結構。")
             else:
-                st.warning("No data was scraped. Please check the URLs and try again.")
+                st.warning("沒有爬取到任何數據。請檢查URL並重試。")
 
-    st.warning("Note: This scraper and analyzer are for educational purposes only. Please respect the website's terms of service and robots.txt file.")
+    st.warning("注意：此爬蟲和分析器僅用於教育目的。請尊重網站的服務條款和robots.txt文件。")
 
 if __name__ == "__main__":
     main()
