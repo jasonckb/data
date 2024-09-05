@@ -151,16 +151,19 @@ def create_chart(data, indicator):
     )
 
     # 檢查最新的預測值
-    latest_forecast = next((float(d['Forecast'].rstrip('K%M')) for d in data if d['Forecast']), None)
-    latest_date = max(dates)
+    latest_data = max(data, key=lambda x: x['Date'])
+    latest_forecast = latest_data.get('Forecast')
 
-    if latest_forecast is not None:
-        # 如果有預測值，只在最新日期繪製預測點
-        fig.add_trace(
-            go.Scatter(x=[latest_date], y=[latest_forecast], name="預測值", 
-                       mode="markers", marker=dict(symbol="star", size=10, color="red")),
-            secondary_y=False,
-        )
+    if latest_forecast and latest_forecast.strip():
+        try:
+            forecast_value = float(latest_forecast.rstrip('K%M'))
+            fig.add_trace(
+                go.Scatter(x=[latest_data['Date']], y=[forecast_value], name="預測值", 
+                           mode="markers", marker=dict(symbol="star", size=10, color="red")),
+                secondary_y=False,
+            )
+        except ValueError:
+            logging.warning(f"無法將預測值 '{latest_forecast}' 轉換為浮點數")
 
     fig.update_layout(
         title=indicator,
