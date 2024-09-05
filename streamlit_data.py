@@ -123,14 +123,14 @@ def process_data(df):
                 indicator,
                 latest['Date'].strftime("%b %d, %Y (%b)"),
                 latest['Vs Forecast'],
-                latest['Forecast'] if latest['Forecast'] else ''
+                latest['Forecast'] if latest['Forecast'] else None  # 使用 None 而不是空字符串
             ]
             actuals = []
             for i in range(5):
                 if i < len(sorted_data):
-                    actuals.append(sorted_data[i].get('Actual', ''))
+                    actuals.append(sorted_data[i].get('Actual', None))  # 使用 None 而不是空字符串
                 else:
-                    actuals.append('')
+                    actuals.append(None)
             row.extend(actuals)
             processed_data.append(row)
         else:
