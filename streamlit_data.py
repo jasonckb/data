@@ -40,18 +40,14 @@ def process_data(df):
         "United States Average Hourly Earnings MoM": [],
         "United States Average Hourly Earnings YoY": [],
         "United States ADP Nonfarm Employment Change": [],
-        "United States JOLTS Job Openings": [],
         "United States Core PCE Price Index YoY": [],
         "United States Core PCE Price Index MoM": [],
-        "United States PCE Price Index YoY": [],
         "United States Consumer Price Index (CPI) MoM": [],
         "United States Core Consumer Price Index (CPI) YoY": [],
-        "United States Consumer Price Index (CPI) YoY": [],
         "United States Core Producer Price Index (PPI) MoM": [],
         "United States Producer Price Index (PPI) MoM": [],
         "United States ISM Manufacturing PMI": [],
         "United States ISM Non-Manufacturing PMI": [],
-        "United States Gross Domestic Product (GDP) Price Index QoQ": [],
         "United States Core Retail Sales MoM": [],
         "United States Retail Sales MoM": [],
         "United States Housing Starts": [],
@@ -65,9 +61,9 @@ def process_data(df):
 
     def parse_date(date_str):
         patterns = [
-            r'(\w+ \d{2}, \d{4}) \((\w+)\)',  # 匹配 "Aug 30, 2024 (Jul)" 格式
-            r'(\w+ \d{2}, \d{4})',            # 匹配 "Jul 24, 2024" 格式
-            r'(\w+ \d{2}, \d{4}) \(Q\d\)'     # 匹配 "Sep 26, 2024 (Q2)" 格式
+            r'(\w+ \d{2}, \d{4}) \((\w+)\)',
+            r'(\w+ \d{2}, \d{4})',
+            r'(\w+ \d{2}, \d{4}) \(Q\d\)'
         ]
         for pattern in patterns:
             match = re.match(pattern, date_str)
@@ -86,10 +82,14 @@ def process_data(df):
             forecast = row.get('Forecast', '')
             actual = row.get('Actual', '')
             
-            try:
-                vs_forecast = "較好" if float(actual.rstrip('K%M')) > float(forecast.rstrip('K%M')) else "較差"
-            except ValueError:
-                vs_forecast = "持平"
+            vs_forecast = ''
+            if actual and forecast:
+                try:
+                    actual_value = float(actual.rstrip('K%M'))
+                    forecast_value = float(forecast.rstrip('K%M'))
+                    vs_forecast = "較好" if actual_value > forecast_value else "較差" if actual_value < forecast_value else "持平"
+                except ValueError:
+                    vs_forecast = ''
             
             indicators[indicator].append({
                 "Date": date,
