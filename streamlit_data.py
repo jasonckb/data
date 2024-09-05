@@ -10,18 +10,12 @@ import time
 st.set_page_config(page_title="US Economic Data Scraper", layout="wide")
 st.title("US Economic Data Scraper")
 
-@st.cache_resource
-def get_driver():
-    return webdriver.Chrome(service=Service(ChromeDriverManager().install()))
-
 @st.cache_data
-def scrape_data(urls, driver):
+def scrape_data(urls):
     data = []
     for url in urls:
-        driver.get(url)
-        time.sleep(2)  # Wait for page to load
-        html = driver.page_source
-        soup = BeautifulSoup(html, 'html.parser')
+        response = requests.get(url)
+        soup = BeautifulSoup(response.content, 'html.parser')
         title = soup.title.string
         rows = soup.find_all('tr')
         row_counter = 0
@@ -71,10 +65,8 @@ urls = [
 ]
 
 if st.button("Scrape Data"):
-    driver = get_driver()
     with st.spinner("Scraping data... This may take a few minutes."):
-        df = scrape_data(urls, driver)
-    driver.quit()
+        df = scrape_data(urls)
     
     st.success("Data scraped successfully!")
     st.dataframe(df)
