@@ -150,7 +150,14 @@ def create_chart(data, indicator):
         secondary_y=False,
     )
 
-    if any(forecasts):
+    if indicator == "United States ADP Nonfarm Employment Change":
+        # 對於 ADP，使用水平線作為預測
+        fig.add_trace(
+            go.Scatter(x=dates, y=[144] * len(dates), name="預測值", mode="lines", line=dict(dash="dash", color="gray")),
+            secondary_y=False,
+        )
+    elif any(forecasts):
+        # 只有在有預測值時才添加預測線
         fig.add_trace(
             go.Scatter(x=dates, y=forecasts, name="預測值", mode="lines", line=dict(dash="dash", color="gray")),
             secondary_y=False,
