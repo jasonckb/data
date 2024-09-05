@@ -4,6 +4,9 @@ import requests
 from bs4 import BeautifulSoup
 from datetime import datetime
 import re
+import logging
+
+logging.basicConfig(level=logging.INFO)
 
 st.set_page_config(page_title="美國經濟數據分析器", layout="wide")
 
@@ -78,7 +81,7 @@ def process_data(df):
         if indicator in indicators:
             date = parse_date(row['Date'])
             if date is None:
-                st.warning(f"無法解析日期: {row['Date']} 對於指標: {indicator}")
+                logging.warning(f"無法解析日期: {row['Date']} 對於指標: {indicator}")
                 continue
 
             forecast = row.get('Forecast', '')
@@ -107,9 +110,18 @@ def process_data(df):
                 latest['Vs Forecast'],
                 latest['Forecast']
             ]
-            row.extend([d.get('Actual', '') if i < len(sorted_data) else '' for i in range(5)])
+            actuals = []
+            for i in range(5):
+                if i < len(sorted_data):
+                    actuals.append(sorted_data[i].get('Actual', ''))
+                else:
+                    actuals.append('')
+            row.extend(actuals)
             processed_data.append(row)
+        else:
+            logging.warning(f"沒有數據用於指標: {indicator}")
 
+    logging.info(f"處理了 {len(processed_data)} 個指標的數據")
     return processed_data
 
 def main():
