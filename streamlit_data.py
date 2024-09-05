@@ -142,7 +142,6 @@ def process_data(df):
 def create_chart(data, indicator):
     dates = [d['Date'] for d in data]
     actuals = [float(d['Actual'].rstrip('K%M')) if d['Actual'] else None for d in data]
-    forecasts = [float(d['Forecast'].rstrip('K%M')) if d['Forecast'] else None for d in data]
     
     fig = make_subplots(specs=[[{"secondary_y": True}]])
 
@@ -151,15 +150,22 @@ def create_chart(data, indicator):
         secondary_y=False,
     )
 
-    # Add forecast points
-    forecast_dates = [d for d, f in zip(dates, forecasts) if f is not None]
-    forecast_values = [f for f in forecasts if f is not None]
-    if forecast_values:
-        fig.add_trace(
-            go.Scatter(x=forecast_dates, y=forecast_values, name="預測值", 
-                       mode="markers", marker=dict(symbol="star", size=10, color="red")),
-            secondary_y=False,
-        )
+    # 檢查最新的預測值
+    latest_data = data[0]  # Assuming data is sorted with the most recent first
+    latest_forecast = latest_data.get('Forecast')
+    latest_date = latest_data['Date']
+
+    if latest_forecast and latest_forecast.strip():
+        try:
+            forecast_value = float(latest_forecast.rstrip('K%M'))
+            # 只在最新日期添加預測點
+            fig.add_trace(
+                go.Scatter(x=[latest_date], y=[forecast_value], name="預測值", 
+                           mode="markers", marker=dict(symbol="star", size=10, color="red")),
+                secondary_y=False,
+            )
+        except ValueError:
+            logging.warning(f"無法將預測值 '{latest_forecast}' 轉換為浮點數")
 
     fig.update_layout(
         title=indicator,
