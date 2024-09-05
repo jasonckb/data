@@ -87,7 +87,7 @@ def process_data(df):
                 return datetime.strptime(match.group(1), '%b %d, %Y')
         return None
 
-    for _, row in df.iterrows():
+     for _, row in df.iterrows():
         indicator = row['Title'].split(' - ')[0]
         if indicator in indicators:
             date = parse_date(row['Date'])
@@ -143,7 +143,7 @@ def process_data(df):
 
 def create_chart(data, indicator):
     dates = [d['Date'] for d in data]
-    actuals = [float(d['Actual'].rstrip('K%M')) if d['Actual'] else None for d in data]
+    actuals = [float(d['Actual'].rstrip('K%M')) if d['Actual'] and d['Actual'] not in ['', 'None'] else None for d in data]
     
     fig = make_subplots(specs=[[{"secondary_y": True}]])
 
@@ -152,16 +152,20 @@ def create_chart(data, indicator):
         secondary_y=False,
     )
 
-    # 檢查最新的預測值
-    latest_forecast = next((float(d['Forecast'].rstrip('K%M')) for d in data if d['Forecast']), None)
+    # 只獲取最新的預測值
+    latest_forecast = next((float(d['Forecast'].rstrip('K%M')) for d in data if d['Forecast'] and d['Forecast'] not in ['', 'None']), None)
 
     if latest_forecast is not None:
-        # 如果有預測值，繪製水平預測線
+        # 只在最新日期繪製預測點
+        latest_date = dates[0]
         fig.add_trace(
-            go.Scatter(x=dates, y=[latest_forecast] * len(dates), name="預測值", 
-                       mode="lines", line=dict(dash="dash", color="gray")),
+            go.Scatter(x=[latest_date], y=[latest_forecast], name="預測值", 
+                       mode="markers", marker=dict(symbol="star", size=10, color="red")),
             secondary_y=False,
         )
+        logging.info(f"繪製最新預測點，值為: {latest_forecast}")
+    else:
+        logging.info("沒有有效的預測值，不繪製預測點")
 
     fig.update_layout(
         title=indicator,
