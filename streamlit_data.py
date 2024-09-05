@@ -7,8 +7,8 @@ import streamlit as st
 import pandas as pd
 from datetime import datetime, timedelta
 
-st.set_page_config(page_title="US Economic Data Scraper", layout="wide")
-st.title("US Economic Data Scraper")
+st.set_page_config(page_title="US Economic Data Scraper and Analyzer", layout="wide")
+st.title("US Economic Data Scraper and Analyzer")
 
 def scrape_data(urls):
     data = []
@@ -66,31 +66,11 @@ urls = [
     "https://www.investing.com/economic-calendar/personal-income-234"
 ]
 
-if st.button("Scrape Data"):
-    with st.spinner("Scraping data... This may take a few minutes."):
-        df = scrape_data(urls)
-    
-    if not df.empty:
-        st.success("Data scraped successfully!")
-        st.dataframe(df)
-        
-        csv = df.to_csv(index=False).encode('utf-8')
-        st.download_button(
-            label="Download data as CSV",
-            data=csv,
-            file_name="us_economic_data.csv",
-            mime="text/csv",
-        )
-    else:
-        st.warning("No data was scraped. Please check the URLs and try again.")
-
-st.warning("Note: This scraper is for educational purposes only. Please respect the website's terms of service and robots.txt file.")
-
 # 處理數據函數
 def process_data(df, current_date):
     processed_data = []
     for _, row in df.iterrows():
-        indicator = row['Indicator']
+        indicator = row['Title']
         date_str = row['Date']
         try:
             date = datetime.strptime(date_str, "%b %d, %Y")
