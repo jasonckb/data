@@ -132,69 +132,70 @@ def main():
         "https://www.investing.com/economic-calendar/average-hourly-earnings-8",
         "https://www.investing.com/economic-calendar/average-hourly-earnings-1777",        
         "https://www.investing.com/economic-calendar/adp-nonfarm-employment-change-1",
-        "https://www.investing.com/economic-calendar/jolts-job-openings-1057",
-        "https://www.investing.com/economic-calendar/ism-manufacturing-pmi-173",
-        "https://www.investing.com/economic-calendar/ism-non-manufacturing-pmi-176",    
         "https://www.investing.com/economic-calendar/core-pce-price-index-905",
         "https://www.investing.com/economic-calendar/core-pce-price-index-61",
-        "https://www.investing.com/economic-calendar/pce-price-index-906",
-        "https://www.investing.com/economic-calendar/core-cpi-69",
-        "https://www.investing.com/economic-calendar/core-cpi-736",           
         "https://www.investing.com/economic-calendar/cpi-733",
+        "https://www.investing.com/economic-calendar/core-cpi-736",           
         "https://www.investing.com/economic-calendar/core-ppi-62",
         "https://www.investing.com/economic-calendar/ppi-238",
-        "https://www.investing.com/economic-calendar/gdp-price-index-343",
+        "https://www.investing.com/economic-calendar/ism-manufacturing-pmi-173",
+        "https://www.investing.com/economic-calendar/ism-non-manufacturing-pmi-176",    
         "https://www.investing.com/economic-calendar/core-retail-sales-63",
         "https://www.investing.com/economic-calendar/retail-sales-256",
-        "https://www.investing.com/economic-calendar/building-permits-25",
         "https://www.investing.com/economic-calendar/housing-starts-151",
         "https://www.investing.com/economic-calendar/existing-home-sales-99",
         "https://www.investing.com/economic-calendar/new-home-sales-222",
         "https://www.investing.com/economic-calendar/cb-consumer-confidence-48",
-        "https://www.investing.com/economic-calendar/michigan-consumer-sentiment-320",
         "https://www.investing.com/economic-calendar/gdp-375",
         "https://www.investing.com/economic-calendar/durable-goods-orders-86",
         "https://www.investing.com/economic-calendar/core-durable-goods-orders-59",
-        "https://www.investing.com/economic-calendar/industrial-production-161",
-        "https://www.investing.com/economic-calendar/personal-income-234"
     ]
 
     if st.button("爬取並分析數據"):
         with st.spinner("正在爬取和分析數據... 這可能需要幾分鐘。"):
             try:
-                # ... (爬取和處理數據的代碼保持不變)
-
-                if processed_data:
-                    st.success("數據分析成功！")
-                    st.subheader("處理後的數據")
+                df = scrape_data(urls)
+                
+                if not df.empty:
+                    st.success("數據爬取成功！")
+                    st.subheader("原始數據")
+                    st.dataframe(df)
                     
-                    columns = ["指標", "數據更新", "與預測比較", "預測", "本月", "1月前", "2月前", "3月前", "4月前"]
-                    processed_df = pd.DataFrame(processed_data, columns=columns)
+                    processed_data = process_data(df)
                     
-                    def color_rows(row):
-                        if row.name < 5:  # 就業數據
-                            return ['background-color: #FFFFE0'] * len(row)
-                        elif 5 <= row.name < 11:  # 通貨膨脹數據
-                            return ['background-color: #E6E6FA'] * len(row)
-                        else:  # 其他經濟指標
-                            return ['background-color: #E6F3FF'] * len(row)
-                    
-                    styled_df = processed_df.style.apply(color_rows, axis=1)
-                    styled_df = styled_df.apply(lambda x: ['color: red' if x['與預測比較'] == '較差' 
-                                                           else 'color: green' if x['與預測比較'] == '較好' 
-                                                           else '' for i in x], axis=1)
-                    
-                    st.dataframe(styled_df)
-                    
-                    csv = processed_df.to_csv(index=False).encode('utf-8')
-                    st.download_button(
-                        label="下載處理後的數據為CSV",
-                        data=csv,
-                        file_name="processed_us_economic_data.csv",
-                        mime="text/csv",
-                    )
+                    if processed_data:
+                        st.success("數據分析成功！")
+                        st.subheader("處理後的數據")
+                        
+                        columns = ["指標", "數據更新", "與預測比較", "預測", "本月", "1月前", "2月前", "3月前", "4月前"]
+                        processed_df = pd.DataFrame(processed_data, columns=columns)
+                        
+                        def color_rows(row):
+                            if row.name < 5:  # 就業數據
+                                return ['background-color: #FFFFE0'] * len(row)
+                            elif 5 <= row.name < 11:  # 通貨膨脹數據
+                                return ['background-color: #E6E6FA'] * len(row)
+                            else:  # 其他經濟指標
+                                return ['background-color: #E6F3FF'] * len(row)
+                        
+                        styled_df = processed_df.style.apply(color_rows, axis=1)
+                        styled_df = styled_df.apply(lambda x: ['color: red' if x['與預測比較'] == '較差' 
+                                                               else 'color: green' if x['與預測比較'] == '較好' 
+                                                               else '' for i in x], axis=1)
+                        
+                        st.dataframe(styled_df)
+                        
+                        csv = processed_df.to_csv(index=False).encode('utf-8')
+                        st.download_button(
+                            label="下載處理後的數據為CSV",
+                            data=csv,
+                            file_name="processed_us_economic_data.csv",
+                            mime="text/csv",
+                        )
+                    else:
+                        st.warning("沒有處理任何數據。請檢查數據結構。")
                 else:
-                    st.warning("沒有處理任何數據。請檢查數據結構。")
+                    st.warning("沒有爬取到任何數據。請檢查URL並重試。")
             except Exception as e:
                 st.error(f"處理過程中發生錯誤: {str(e)}")
                 logging.exception("處理過程中發生錯誤")
