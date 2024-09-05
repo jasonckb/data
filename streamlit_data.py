@@ -123,12 +123,12 @@ def process_data(df):
                 indicator,
                 latest['Date'].strftime("%b %d, %Y (%b)"),
                 latest['Vs Forecast'],
-                latest['Forecast'] if latest['Forecast'] else None  # 使用 None 而不是空字符串
+                latest['Forecast'] if latest['Forecast'] else None
             ]
             actuals = []
             for i in range(5):
                 if i < len(sorted_data):
-                    actuals.append(sorted_data[i].get('Actual', None))  # 使用 None 而不是空字符串
+                    actuals.append(sorted_data[i].get('Actual') or None)
                 else:
                     actuals.append(None)
             row.extend(actuals)
@@ -156,7 +156,7 @@ def create_chart(data, indicator):
         secondary_y=False,
     )
 
-    if any(forecasts):
+    if any(forecast is not None for forecast in forecasts):
         latest_forecast = next((f for f in forecasts if f is not None), None)
         if latest_forecast is not None:
             fig.add_trace(
