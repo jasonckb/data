@@ -7,6 +7,7 @@ import streamlit as st
 import pandas as pd
 from datetime import datetime, timedelta
 from dateutil import parser
+import re
 
 st.set_page_config(page_title="US Economic Data Scraper and Analyzer", layout="wide")
 st.title("US Economic Data Scraper and Analyzer")
@@ -98,17 +99,22 @@ def process_data(df):
         "United States Building Permits": []
     }
 
+    def parse_date(date_str):
+        match = re.match(r'(\w+ \d{2}, \d{4}) \((\w+)\)', date_str)
+        if match:
+            return datetime.strptime(match.group(1), '%b %d, %Y')
+        return None
+
     for _, row in df.iterrows():
         indicator = row['Title'].split(' - ')[0]
         if indicator in indicators:
-            try:
-                date = parser.parse(row['Date'])
-            except ValueError:
+            date = parse_date(row['Date'])
+            if date is None:
                 st.warning(f"無法解析日期: {row['Date']} 對於指標: {indicator}")
                 continue
 
-            forecast = row['Forecast']
-            actual = row['Actual']
+            forecast = row.get('Forecast', '')
+            actual = row.get('Actual', '')
             
             try:
                 vs_forecast = "Better Off" if float(actual.rstrip('K%M')) > float(forecast.rstrip('K%M')) else "Worse Off"
@@ -133,7 +139,7 @@ def process_data(df):
                 latest['Vs Forecast'],
                 latest['Forecast']
             ]
-            row.extend([d['Actual'] if i < len(sorted_data) else '' for i in range(5)])
+            row.extend([d.get('Actual', '') if i < len(sorted_data) else '' for i in range(5)])
             processed_data.append(row)
 
     return processed_data
