@@ -15,25 +15,26 @@ st.set_page_config(page_title="美國經濟數據分析器", layout="wide")
 def scrape_data(urls):
     data = []
     for url in urls:
-        driver.get(url)
-        time.sleep(2)  # 等待頁面加載
-        html = driver.page_source
-        soup = BeautifulSoup(html, 'html.parser')
-        title = soup.title.string
-        rows = soup.find_all('tr')
-        row_counter = 0
-        
-        for row in rows:
-            if row_counter >= 6:
-                break
-            cols = row.find_all('td')
-            if len(cols) == 6:
-                cols_text = [col.text.strip() for col in cols]
-                # 如果預測列為空，將其設置為 None
-                if cols_text[3] == '':
-                    cols_text[3] = None
-                data.append([title] + cols_text)
-                row_counter += 1
+        try:
+            response = requests.get(url)
+            soup = BeautifulSoup(response.content, 'html.parser')
+            title = soup.title.string if soup.title else "No title"
+            rows = soup.find_all('tr')
+            row_counter = 0
+            
+            for row in rows:
+                if row_counter >= 6:
+                    break
+                cols = row.find_all('td')
+                if len(cols) == 6:
+                    cols_text = [col.text.strip() for col in cols]
+                    # 如果預測列為空，將其設置為 None
+                    if cols_text[3] == '':
+                        cols_text[3] = None
+                    data.append([title] + cols_text)
+                    row_counter += 1
+        except Exception as e:
+            st.error(f"爬取 {url} 時出錯: {str(e)}")
     
     return pd.DataFrame(data, columns=['Title', 'Date', 'Time', 'Actual', 'Forecast', 'Previous', 'Importance'])
 
