@@ -1,114 +1,90 @@
 import streamlit as st
-import investpy
+import requests
+from bs4 import BeautifulSoup
 import pandas as pd
-from datetime import datetime, timedelta
-import logging
+from selenium import webdriver
+from selenium.webdriver.chrome.service import Service
+from webdriver_manager.chrome import ChromeDriverManager
+import time
 
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
+st.set_page_config(page_title="US Economic Data Scraper", layout="wide")
+st.title("US Economic Data Scraper")
 
-indicators = {
-    "Unemployment Rate": "Unemployment Rate",
-    "Non-Farm Payrolls": "Nonfarm Payrolls",
-    "Average Hourly Earnings": "Average Hourly Earnings",
-    "ADP Nonfarm Employment Change": "ADP Nonfarm Employment Change",
-    "JOLTs Job Openings": "JOLTs Job Openings",
-    "ISM Manufacturing PMI": "ISM Manufacturing PMI",
-    "ISM Services PMI": "ISM Services PMI",
-    "Core PCE Price Index": "Core PCE Price Index",
-    "PCE Price Index": "PCE Price Index",
-    "Core CPI": "Core Consumer Price Index (CPI)",
-    "CPI": "Consumer Price Index (CPI)",
-    "Core PPI": "Core Producer Price Index (PPI)",
-    "PPI": "Producer Price Index (PPI)",
-    "GDP Price Index": "GDP Price Index",
-    "Core Retail Sales": "Core Retail Sales",
-    "Retail Sales": "Retail Sales",
-    "Building Permits": "Building Permits",
-    "Housing Starts": "Housing Starts",
-    "Existing Home Sales": "Existing Home Sales",
-    "New Home Sales": "New Home Sales",
-    "CB Consumer Confidence": "CB Consumer Confidence",
-    "Michigan Consumer Sentiment": "Michigan Consumer Sentiment",
-    "GDP": "Gross Domestic Product (GDP)",
-    "Durable Goods Orders": "Durable Goods Orders",
-    "Core Durable Goods Orders": "Core Durable Goods Orders",
-    "Industrial Production": "Industrial Production",
-    "Personal Income": "Personal Income"
-}
+@st.cache_resource
+def get_driver():
+    return webdriver.Chrome(service=Service(ChromeDriverManager().install()))
 
 @st.cache_data
-def fetch_economic_data(indicator, country="united states", n_results=6):
-    try:
-        end_date = datetime.now()
-        start_date = end_date - timedelta(days=365*2)  # Go back 2 years to ensure we get enough data
+def scrape_data(urls, driver):
+    data = []
+    for url in urls:
+        driver.get(url)
+        time.sleep(2)  # Wait for page to load
+        html = driver.page_source
+        soup = BeautifulSoup(html, 'html.parser')
+        title = soup.title.string
+        rows = soup.find_all('tr')
+        row_counter = 0
         
-        data = investpy.economic_calendar(
-            countries=[country],
-            from_date=start_date.strftime('%d/%m/%Y'),
-            to_date=end_date.strftime('%d/%m/%Y')
-        )
-        
-        # Filter for the specific indicator and high/medium importance
-        data = data[(data['event'].str.contains(indicator, case=False)) & 
-                    (data['importance'].isin(['high', 'medium']))]
-        
-        # Sort by date (most recent first) and get the last n_results
-        data = data.sort_values('date', ascending=False).head(n_results)
-        
-        # Rename columns to match our format
-        data = data.rename(columns={
-            'actual': 'Actual',
-            'forecast': 'Forecast',
-            'previous': 'Previous',
-            'event': 'Indicator'
-        })
-        
-        return data[['date', 'time', 'Actual', 'Forecast', 'Previous', 'Indicator']]
-    except Exception as e:
-        logger.error(f"Error fetching data for {indicator}: {str(e)}")
-        return pd.DataFrame()
-
-def main():
-    st.title("US Economic Data Dashboard")
+        for row in rows:
+            if row_counter >= 6:
+                break
+            cols = row.find_all('td')
+            if len(cols) == 6:
+                cols_text = [col.text.strip() for col in cols]
+                data.append([title] + cols_text)
+                row_counter += 1
     
-    st.sidebar.header("Select Economic Indicators")
-    selected_indicators = st.sidebar.multiselect(
-        "Choose indicators",
-        list(indicators.keys())
+    return pd.DataFrame(data, columns=['Title', 'Date', 'Time', 'Actual', 'Forecast', 'Previous', 'Importance'])
+
+urls = [
+    "https://www.investing.com/economic-calendar/unemployment-rate-300",
+    "https://www.investing.com/economic-calendar/nonfarm-payrolls-227",
+    "https://www.investing.com/economic-calendar/average-hourly-earnings-8",
+    "https://www.investing.com/economic-calendar/average-hourly-earnings-1777",        
+    "https://www.investing.com/economic-calendar/adp-nonfarm-employment-change-1",
+    "https://www.investing.com/economic-calendar/jolts-job-openings-1057",
+    "https://www.investing.com/economic-calendar/ism-manufacturing-pmi-173",
+    "https://www.investing.com/economic-calendar/ism-non-manufacturing-pmi-176",    
+    "https://www.investing.com/economic-calendar/core-pce-price-index-905",
+    "https://www.investing.com/economic-calendar/core-pce-price-index-61",
+    "https://www.investing.com/economic-calendar/pce-price-index-906",
+    "https://www.investing.com/economic-calendar/core-cpi-69",
+    "https://www.investing.com/economic-calendar/core-cpi-736",           
+    "https://www.investing.com/economic-calendar/cpi-733",
+    "https://www.investing.com/economic-calendar/core-ppi-62",
+    "https://www.investing.com/economic-calendar/ppi-238",
+    "https://www.investing.com/economic-calendar/gdp-price-index-343",
+    "https://www.investing.com/economic-calendar/core-retail-sales-63",
+    "https://www.investing.com/economic-calendar/retail-sales-256",
+    "https://www.investing.com/economic-calendar/building-permits-25",
+    "https://www.investing.com/economic-calendar/housing-starts-151",
+    "https://www.investing.com/economic-calendar/existing-home-sales-99",
+    "https://www.investing.com/economic-calendar/new-home-sales-222",
+    "https://www.investing.com/economic-calendar/cb-consumer-confidence-48",
+    "https://www.investing.com/economic-calendar/michigan-consumer-sentiment-320",
+    "https://www.investing.com/economic-calendar/gdp-375",
+    "https://www.investing.com/economic-calendar/durable-goods-orders-86",
+    "https://www.investing.com/economic-calendar/core-durable-goods-orders-59",
+    "https://www.investing.com/economic-calendar/industrial-production-161",
+    "https://www.investing.com/economic-calendar/personal-income-234"
+]
+
+if st.button("Scrape Data"):
+    driver = get_driver()
+    with st.spinner("Scraping data... This may take a few minutes."):
+        df = scrape_data(urls, driver)
+    driver.quit()
+    
+    st.success("Data scraped successfully!")
+    st.dataframe(df)
+    
+    csv = df.to_csv(index=False)
+    st.download_button(
+        label="Download data as CSV",
+        data=csv,
+        file_name="us_economic_data.csv",
+        mime="text/csv",
     )
-    
-    if selected_indicators:
-        all_data = []
-        for indicator_name in selected_indicators:
-            indicator_search = indicators[indicator_name]
-            with st.spinner(f'Fetching data for {indicator_name}...'):
-                df = fetch_economic_data(indicator_search)
-                if not df.empty:
-                    all_data.append(df)
-                    st.subheader(f"{indicator_name} Data")
-                    st.dataframe(df)
-                    
-                    if 'Actual' in df.columns:
-                        df['Actual'] = pd.to_numeric(df['Actual'].replace(r'[^0-9.-]', '', regex=True), errors='coerce')
-                        if df['Actual'].notna().any():
-                            st.line_chart(df.set_index('date')['Actual'])
-                        else:
-                            st.write("Unable to create chart: 'Actual' column not numeric")
-                else:
-                    st.warning(f"No data available for {indicator_name}")
-        
-        if all_data:
-            combined_df = pd.concat(all_data)
-            csv = combined_df.to_csv(index=False)
-            st.download_button(
-                label="Download all data as CSV",
-                data=csv,
-                file_name="US_economic_data.csv",
-                mime="text/csv",
-            )
-        else:
-            st.error("No data was successfully retrieved for any selected indicator.")
 
-if __name__ == "__main__":
-    main()
+st.warning("Note: This scraper is for educational purposes only. Please respect the website's terms of service and robots.txt file.")
