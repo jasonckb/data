@@ -173,8 +173,11 @@ def main():
                 
                 if not df.empty:
                     st.success("數據爬取成功！")
-                    st.subheader("原始數據")
-                    st.dataframe(df)
+                    
+                    # 使用 expander 來顯示原始數據
+                    with st.expander("點擊查看原始數據"):
+                        st.subheader("原始數據")
+                        st.dataframe(df)
                     
                     processed_data = process_data(df)
                     
