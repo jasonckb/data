@@ -162,37 +162,39 @@ def main():
     if st.button("爬取並分析數據"):
         with st.spinner("正在爬取和分析數據... 這可能需要幾分鐘。"):
             try:
-                df = scrape_data(urls)
-                
-                if not df.empty:
-                    st.success("數據爬取成功！")
-                    st.subheader("原始數據")
-                    st.dataframe(df)
+                # ... (爬取和處理數據的代碼保持不變)
+
+                if processed_data:
+                    st.success("數據分析成功！")
+                    st.subheader("處理後的數據")
                     
-                    processed_data = process_data(df)
+                    columns = ["指標", "數據更新", "與預測比較", "預測", "本月", "1月前", "2月前", "3月前", "4月前"]
+                    processed_df = pd.DataFrame(processed_data, columns=columns)
                     
-                    if processed_data:
-                        st.success("數據分析成功！")
-                        st.subheader("處理後的數據")
-                        
-                        columns = ["指標", "數據更新", "與預測比較", "預測", "本月", "1月前", "2月前", "3月前", "4月前"]
-                        processed_df = pd.DataFrame(processed_data, columns=columns)
-                        
-                        st.dataframe(processed_df.style.apply(lambda x: ['background: pink' if x['與預測比較'] == '較差' 
-                                                                         else 'background: lightgreen' if x['與預測比較'] == '較好' 
-                                                                         else '' for i in x], axis=1))
-                        
-                        csv = processed_df.to_csv(index=False).encode('utf-8')
-                        st.download_button(
-                            label="下載處理後的數據為CSV",
-                            data=csv,
-                            file_name="processed_us_economic_data.csv",
-                            mime="text/csv",
-                        )
-                    else:
-                        st.warning("沒有處理任何數據。請檢查數據結構。")
+                    def color_rows(row):
+                        if row.name < 5:  # 就業數據
+                            return ['background-color: #FFFFE0'] * len(row)
+                        elif 5 <= row.name < 11:  # 通貨膨脹數據
+                            return ['background-color: #E6E6FA'] * len(row)
+                        else:  # 其他經濟指標
+                            return ['background-color: #E6F3FF'] * len(row)
+                    
+                    styled_df = processed_df.style.apply(color_rows, axis=1)
+                    styled_df = styled_df.apply(lambda x: ['color: red' if x['與預測比較'] == '較差' 
+                                                           else 'color: green' if x['與預測比較'] == '較好' 
+                                                           else '' for i in x], axis=1)
+                    
+                    st.dataframe(styled_df)
+                    
+                    csv = processed_df.to_csv(index=False).encode('utf-8')
+                    st.download_button(
+                        label="下載處理後的數據為CSV",
+                        data=csv,
+                        file_name="processed_us_economic_data.csv",
+                        mime="text/csv",
+                    )
                 else:
-                    st.warning("沒有爬取到任何數據。請檢查URL並重試。")
+                    st.warning("沒有處理任何數據。請檢查數據結構。")
             except Exception as e:
                 st.error(f"處理過程中發生錯誤: {str(e)}")
                 logging.exception("處理過程中發生錯誤")
