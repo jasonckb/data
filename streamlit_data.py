@@ -3,6 +3,9 @@ import requests
 from bs4 import BeautifulSoup
 import pandas as pd
 import time
+import streamlit as st
+import pandas as pd
+from datetime import datetime, timedelta
 
 st.set_page_config(page_title="US Economic Data Scraper", layout="wide")
 st.title("US Economic Data Scraper")
@@ -82,3 +85,43 @@ if st.button("Scrape Data"):
         st.warning("No data was scraped. Please check the URLs and try again.")
 
 st.warning("Note: This scraper is for educational purposes only. Please respect the website's terms of service and robots.txt file.")
+
+# 處理數據函數
+def process_data(data, current_date):
+    processed_data = []
+    for row in data:
+        indicator, date_str, *values = row
+        date = datetime.strptime(date_str, "%b %d, %Y")
+        if date > current_date:
+            # 如果數據日期在未來，使用上個月的數據
+            values = values[1:] + [values[0]]
+            date = date.replace(month=date.month-1)
+        
+        forecast = values[1]
+        actual = values[0]
+        vs_forecast = "Better Off" if float(actual.rstrip('K%')) > float(forecast.rstrip('K%')) else "Worse Off"
+        
+        processed_row = [indicator, date.strftime("%b %d, %Y"), vs_forecast] + values
+        processed_data.append(processed_row)
+    
+    return processed_data
+
+# 主應用
+def main():
+    # 獲取當前日期
+    current_date = datetime.now()
+    
+    # 生成模擬數據
+    raw_data = generate_mock_data()
+    
+    # 處理數據
+    processed_data = process_data(raw_data, current_date)
+    
+    # 創建 DataFrame
+    df = pd.DataFrame(processed_data, columns=["Indicator", "Data Update", "Vs Forecast", "Forecast", "0", "1", "2", "3", "4"])
+    
+    # 顯示表格
+    st.dataframe(df.style.apply(lambda x: ['background: pink' if x['Vs Forecast'] == 'Worse Off' else 'background: lightgreen' if x['Vs Forecast'] == 'Better Off' else '' for i in x], axis=1))
+
+if __name__ == "__main__":
+    main()
