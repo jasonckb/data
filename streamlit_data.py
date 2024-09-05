@@ -136,9 +136,7 @@ def process_data(df):
         else:
             logging.warning(f"沒有數據用於指標: {indicator}")
 
-    logging.info(f"處理了 {len(processed_data)} 個指標的數據")
-    return processed_data
-    return processed_data
+    return processed_data, indicators    
 
 def create_chart(data, indicator):
     dates = [d['Date'] for d in data]
@@ -238,10 +236,14 @@ def main():
         for index, row in st.session_state.processed_df.iterrows():
             if st.sidebar.button(row['指標']):
                 # 獲取該指標的所有數據
-                indicator_data = [d for d in st.session_state.indicators[row['指標']] if d['Actual']]
-                # 創建並顯示圖表
-                fig = create_chart(indicator_data, row['指標'])
-                chart_placeholder.plotly_chart(fig)
+                indicator_data = st.session_state.indicators.get(row['指標'], [])
+                indicator_data = [d for d in indicator_data if d.get('Actual')]
+                if indicator_data:
+                    # 創建並顯示圖表
+                    fig = create_chart(indicator_data, row['指標'])
+                    chart_placeholder.plotly_chart(fig)
+                else:
+                    st.warning(f"沒有找到 {row['指標']} 的有效數據")
         
         # ... (下載按鈕的代碼保持不變)
 
