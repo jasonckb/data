@@ -66,55 +66,53 @@ urls = [
     "https://www.investing.com/economic-calendar/personal-income-234"
 ]
 
-# 處理數據函數
 def process_data(df, current_date):
     processed_data = []
     for _, row in df.iterrows():
-        indicator = row['Title']
+        indicator = row['Title'].split(' - ')[0]  # 提取指標名稱
         date_str = row['Date']
         try:
             date = datetime.strptime(date_str, "%b %d, %Y")
         except ValueError:
-            # 如果日期格式不匹配，跳過這一行
             continue
-        
-        if date > current_date:
-            # 如果數據日期在未來，使用上個月的數據
-            date = date.replace(month=date.month-1)
         
         forecast = row['Forecast']
         actual = row['Actual']
+        previous = row['Previous']
         
+        # 計算 Vs Forecast
         try:
             vs_forecast = "Better Off" if float(actual.rstrip('K%M')) > float(forecast.rstrip('K%M')) else "Worse Off"
         except ValueError:
-            vs_forecast = "N/A"
+            vs_forecast = "Par"
         
-        processed_row = [indicator, date.strftime("%b %d, %Y"), vs_forecast, forecast, actual, row['Previous']]
+        # 創建歷史數據列表
+        historical_data = [actual, previous, '', '', '']  # 只有兩個月的數據，其餘填充空字符串
+        
+        processed_row = [indicator, date.strftime("%b %d, %Y (%b)"), vs_forecast, forecast] + historical_data
         processed_data.append(processed_row)
     
     return processed_data
 
-# 主應用
 def main():
-    if st.button("Scrape and Analyze Data"):
-        with st.spinner("Scraping and analyzing data... This may take a few minutes."):
-            df = scrape_data(urls)
+    if st.button("Analyze Data"):
+        with st.spinner("Analyzing data... This may take a few minutes."):
+            df = scrape_data(urls)  # 假設這個函數已經實現
             
             if not df.empty:
-                st.success("Data scraped successfully!")
+                st.success("Data analyzed successfully!")
                 
-                # 獲取當前日期
                 current_date = datetime.now()
-                
-                # 處理數據
                 processed_data = process_data(df, current_date)
                 
                 # 創建 DataFrame
-                processed_df = pd.DataFrame(processed_data, columns=["Indicator", "Data Update", "Vs Forecast", "Forecast", "Actual", "Previous"])
+                columns = ["Indicator", "Data Update", "Vs Forecast", "Forecast", "0", "1", "2", "3", "4"]
+                processed_df = pd.DataFrame(processed_data, columns=columns)
                 
                 # 顯示表格
-                st.dataframe(processed_df.style.apply(lambda x: ['background: pink' if x['Vs Forecast'] == 'Worse Off' else 'background: lightgreen' if x['Vs Forecast'] == 'Better Off' else '' for i in x], axis=1))
+                st.dataframe(processed_df.style.apply(lambda x: ['background: pink' if x['Vs Forecast'] == 'Worse Off' 
+                                                                 else 'background: lightgreen' if x['Vs Forecast'] == 'Better Off' 
+                                                                 else '' for i in x], axis=1))
                 
                 csv = processed_df.to_csv(index=False).encode('utf-8')
                 st.download_button(
@@ -124,9 +122,9 @@ def main():
                     mime="text/csv",
                 )
             else:
-                st.warning("No data was scraped. Please check the URLs and try again.")
+                st.warning("No data was analyzed. Please check the data source.")
 
-    st.warning("Note: This scraper is for educational purposes only. Please respect the website's terms of service and robots.txt file.")
+    st.warning("Note: This analyzer is for educational purposes only.")
 
 if __name__ == "__main__":
     main()
