@@ -28,9 +28,6 @@ def scrape_data(urls):
                 cols = row.find_all('td')
                 if len(cols) == 6:
                     cols_text = [col.text.strip() for col in cols]
-                    # 如果預測列為空，將其設置為 None
-                    if cols_text[3] == '':
-                        cols_text[3] = None
                     data.append([title] + cols_text)
                     row_counter += 1
         except Exception as e:
@@ -126,32 +123,26 @@ def process_data(df):
                 indicator,
                 latest['Date'].strftime("%b %d, %Y (%b)"),
                 latest['Vs Forecast'],
-                latest['Forecast'] if latest['Forecast'] else None  # 這裡處理預測值
+                latest['Forecast'] if latest['Forecast'] else ''
             ]
             actuals = []
             for i in range(5):
                 if i < len(sorted_data):
-                    actuals.append(sorted_data[i].get('Actual') or None)  # 這裡處理實際值
+                    actuals.append(sorted_data[i].get('Actual', ''))
                 else:
-                    actuals.append(None)
+                    actuals.append('')
             row.extend(actuals)
             processed_data.append(row)
         else:
             logging.warning(f"沒有數據用於指標: {indicator}")
 
     logging.info(f"處理了 {len(processed_data)} 個指標的數據")
-    return processed_data, indicators
+    return processed_data, indicators    
 
 def create_chart(data, indicator):
     dates = [d['Date'] for d in data]
-    actuals = [float(d['Actual'].rstrip('K%M')) if d['Actual'] and d['Actual'].strip() != '' else None for d in data]
-    forecasts = [float(d['Forecast'].rstrip('K%M')) if d['Forecast'] and d['Forecast'].strip() != '' else None for d in data]
+    actuals = [float(d['Actual'].rstrip('K%M')) if d['Actual'] else None for d in data]
     
-    logging.info(f"指標 {indicator} 的數據:")
-    logging.info(f"日期: {dates}")
-    logging.info(f"實際值: {actuals}")
-    logging.info(f"預測值: {forecasts}")
-
     fig = make_subplots(specs=[[{"secondary_y": True}]])
 
     fig.add_trace(
@@ -159,19 +150,16 @@ def create_chart(data, indicator):
         secondary_y=False,
     )
 
-    if any(forecast is not None for forecast in forecasts):
-        latest_forecast = next((f for f in forecasts if f is not None), None)
-        if latest_forecast is not None:
-            fig.add_trace(
-                go.Scatter(x=dates, y=[latest_forecast] * len(dates), name="預測值", 
-                           mode="lines", line=dict(dash="dash", color="gray")),
-                secondary_y=False,
-            )
-            logging.info(f"繪製預測線，值為: {latest_forecast}")
-        else:
-            logging.info("沒有有效的預測值，不繪製預測線")
-    else:
-        logging.info("沒有預測值，不繪製預測線")
+    # 檢查最新的預測值
+    latest_forecast = next((float(d['Forecast'].rstrip('K%M')) for d in data if d['Forecast']), None)
+
+    if latest_forecast is not None:
+        # 如果有預測值，繪製水平預測線
+        fig.add_trace(
+            go.Scatter(x=dates, y=[latest_forecast] * len(dates), name="預測值", 
+                       mode="lines", line=dict(dash="dash", color="gray")),
+            secondary_y=False,
+        )
 
     fig.update_layout(
         title=indicator,
@@ -237,17 +225,6 @@ def main():
                         st.success("數據分析成功！")
                         st.session_state.processed_df = pd.DataFrame(processed_data, columns=["指標", "數據更新", "與預測比較", "預測", "本月", "1月前", "2月前", "3月前", "4月前"])
                         st.session_state.indicators = indicators
-
-                        # 添加調試信息
-                        st.write("數據預覽：")
-                        st.write(st.session_state.processed_df)
-                        st.write("指標數據示例：")
-                        for indicator, data in st.session_state.indicators.items():
-                            st.write(f"{indicator}:")
-                            st.write(pd.DataFrame(data))
-                            break  # 只顯示第一個指標的數據
-
-                        st.session_state.show_table = True
                     else:
                         st.warning("沒有處理任何數據。請檢查數據結構。")
                 else:
