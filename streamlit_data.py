@@ -150,16 +150,17 @@ def create_chart(data, indicator):
         secondary_y=False,
     )
 
-    # 檢查最新的預測值
-    latest_forecast = next((float(d['Forecast'].rstrip('K%M')) for d in data if d['Forecast']), None)
-
-    if latest_forecast is not None:
+    # 檢查是否有任何預測值
+    forecasts = [float(d['Forecast'].rstrip('K%M')) if d['Forecast'] else None for d in data]
+    if any(forecasts):
         # 如果有預測值，繪製水平預測線
-        fig.add_trace(
-            go.Scatter(x=dates, y=[latest_forecast] * len(dates), name="預測值", 
-                       mode="lines", line=dict(dash="dash", color="gray")),
-            secondary_y=False,
-        )
+        latest_forecast = next((f for f in forecasts if f is not None), None)
+        if latest_forecast is not None:
+            fig.add_trace(
+                go.Scatter(x=dates, y=[latest_forecast] * len(dates), name="預測值", 
+                           mode="lines", line=dict(dash="dash", color="gray")),
+                secondary_y=False,
+            )
 
     fig.update_layout(
         title=indicator,
