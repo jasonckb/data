@@ -66,32 +66,70 @@ urls = [
     "https://www.investing.com/economic-calendar/personal-income-234"
 ]
 
-def process_data(df, current_date):
-    processed_data = []
+def process_data(df):
+    indicators = {
+        "United States Unemployment Rate": [],
+        "United States Nonfarm Payrolls": [],
+        "United States Average Hourly Earnings MoM": [],
+        "United States Average Hourly Earnings YoY": [],
+        "United States ADP Nonfarm Employment Change": [],
+        "United States JOLTS Job Openings": [],
+        "United States ISM Manufacturing PMI": [],
+        "United States ISM Non-Manufacturing PMI": [],
+        "United States Core PCE Price Index YoY": [],
+        "United States Core PCE Price Index MoM": [],
+        "United States PCE Price Index YoY": [],
+        "United States Consumer Price Index (CPI) MoM": [],
+        "United States Core Consumer Price Index (CPI) YoY": [],
+        "United States Consumer Price Index (CPI) YoY": [],
+        "United States Core Producer Price Index (PPI) MoM": [],
+        "United States Producer Price Index (PPI) MoM": [],
+        "United States Gross Domestic Product (GDP) Price Index QoQ": [],
+        "United States Core Retail Sales MoM": [],
+        "United States Retail Sales MoM": [],
+        "United States Housing Starts": [],
+        "United States Existing Home Sales": [],
+        "United States New Home Sales": [],
+        "United States CB Consumer Confidence": [],
+        "United States Gross Domestic Product (GDP) QoQ": [],
+        "United States Durable Goods Orders MoM": [],
+        "United States Core Durable Goods Orders MoM": [],
+        "United States Building Permits": []
+    }
+
     for _, row in df.iterrows():
-        indicator = row['Title'].split(' - ')[0]  # 提取指標名稱
-        date_str = row['Date']
-        try:
-            date = datetime.strptime(date_str, "%b %d, %Y")
-        except ValueError:
-            continue
-        
-        forecast = row['Forecast']
-        actual = row['Actual']
-        previous = row['Previous']
-        
-        # 計算 Vs Forecast
-        try:
-            vs_forecast = "Better Off" if float(actual.rstrip('K%M')) > float(forecast.rstrip('K%M')) else "Worse Off"
-        except ValueError:
-            vs_forecast = "Par"
-        
-        # 創建歷史數據列表
-        historical_data = [actual, previous, '', '', '']  # 只有兩個月的數據，其餘填充空字符串
-        
-        processed_row = [indicator, date.strftime("%b %d, %Y (%b)"), vs_forecast, forecast] + historical_data
-        processed_data.append(processed_row)
-    
+        indicator = row['Title'].split(' - ')[0]
+        if indicator in indicators:
+            date = datetime.strptime(row['Date'], "%b %d, %Y")
+            forecast = row['Forecast']
+            actual = row['Actual']
+            
+            try:
+                vs_forecast = "Better Off" if float(actual.rstrip('K%M')) > float(forecast.rstrip('K%M')) else "Worse Off"
+            except ValueError:
+                vs_forecast = "Par"
+            
+            indicators[indicator].append({
+                "Date": date,
+                "Vs Forecast": vs_forecast,
+                "Forecast": forecast,
+                "Actual": actual
+            })
+
+    processed_data = []
+    for indicator, data in indicators.items():
+        if data:
+            sorted_data = sorted(data, key=lambda x: x['Date'], reverse=True)
+            latest = sorted_data[0]
+            row = [
+                indicator,
+                latest['Date'].strftime("%b %d, %Y (%b)"),
+                latest['Vs Forecast'],
+                latest['Forecast']
+            ]
+            row.extend([d['Actual'] if i < len(sorted_data) else '' for i in range(5)])
+            processed_data.append(row)
+
     return processed_data
 
 def main():
@@ -102,14 +140,11 @@ def main():
             if not df.empty:
                 st.success("Data analyzed successfully!")
                 
-                current_date = datetime.now()
-                processed_data = process_data(df, current_date)
+                processed_data = process_data(df)
                 
-                # 創建 DataFrame
                 columns = ["Indicator", "Data Update", "Vs Forecast", "Forecast", "0", "1", "2", "3", "4"]
                 processed_df = pd.DataFrame(processed_data, columns=columns)
                 
-                # 顯示表格
                 st.dataframe(processed_df.style.apply(lambda x: ['background: pink' if x['Vs Forecast'] == 'Worse Off' 
                                                                  else 'background: lightgreen' if x['Vs Forecast'] == 'Better Off' 
                                                                  else '' for i in x], axis=1))
