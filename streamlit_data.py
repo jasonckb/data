@@ -207,6 +207,9 @@ def main():
     if 'processed_df' not in st.session_state:
         st.session_state.processed_df = None
 
+    if 'raw_df' not in st.session_state:
+        st.session_state.raw_df = None
+
     if st.button("爬取並分析數據"):
         with st.spinner("正在爬取和分析數據... 這可能需要幾分鐘。"):
             try:
@@ -215,9 +218,8 @@ def main():
                 if not df.empty:
                     st.success("數據爬取成功！")
                     
-                    with st.expander("點擊查看原始數據"):
-                        st.subheader("原始數據")
-                        st.dataframe(df)
+                    # 保存原始數據
+                    st.session_state.raw_df = df
                     
                     processed_data, indicators = process_data(df)
                     
@@ -232,6 +234,20 @@ def main():
             except Exception as e:
                 st.error(f"處理過程中發生錯誤: {str(e)}")
                 logging.exception("處理過程中發生錯誤")
+
+    if st.session_state.raw_df is not None:
+        with st.expander("點擊查看原始數據"):
+            st.subheader("原始數據")
+            st.dataframe(st.session_state.raw_df)
+        
+        # 添加下載原始數據的按鈕
+        csv_raw = st.session_state.raw_df.to_csv(index=False).encode('utf-8')
+        st.download_button(
+            label="下載原始數據為CSV",
+            data=csv_raw,
+            file_name="raw_us_economic_data.csv",
+            mime="text/csv",
+        )
 
     if st.session_state.processed_df is not None:
         st.subheader("處理後的數據")
