@@ -270,32 +270,32 @@ def main():
                 return ['background-color: #E6F3FF'] * len(row)
         
         def color_rows(row):
-    base_style = {
-        'text-align': 'center',
-        'vertical-align': 'middle',
-        'height': '50px',
-        'white-space': 'pre-wrap',
-        'word-wrap': 'break-word',
-        'font-size': '14px',
-        'padding': '5px'
-    }
-    if row.name < 5:  # 就業數據
-        base_style['background-color'] = '#FFFFE0'
-    elif 5 <= row.name < 11:  # 通貨膨脹數據
-        base_style['background-color'] = '#E6E6FA'
-    else:  # 其他經濟指標
-        base_style['background-color'] = '#E6F3FF'
-    return [base_style] * len(row)
-
-def color_text(val):
-    if val == '較差':
-        return 'color: red; font-weight: bold;'
-    elif val == '較好':
-        return 'color: green; font-weight: bold;'
-    return ''
-
-styled_df = st.session_state.processed_df.style.apply(color_rows, axis=1)
-styled_df = styled_df.applymap(color_text, subset=['與預測比較'])
+            base_style = {
+                'text-align': 'center',
+                'vertical-align': 'middle',
+                'height': '50px',
+                'white-space': 'pre-wrap',
+                'word-wrap': 'break-word',
+                'font-size': '14px',
+                'padding': '5px'
+            }
+            if row.name < 5:  # 就業數據
+                base_style['background-color'] = '#FFFFE0'
+            elif 5 <= row.name < 11:  # 通貨膨脹數據
+                base_style['background-color'] = '#E6E6FA'
+            else:  # 其他經濟指標
+                base_style['background-color'] = '#E6F3FF'
+            return [base_style] * len(row)
+        
+        def color_text(val):
+            if val == '較差':
+                return 'color: red; font-weight: bold;'
+            elif val == '較好':
+                return 'color: green; font-weight: bold;'
+            return ''
+        
+        styled_df = st.session_state.processed_df.style.apply(color_rows, axis=1)
+        styled_df = styled_df.applymap(color_text, subset=['與預測比較'])
 
 # 設置列寬
 col_width = [200, 120, 80, 80, 80, 80, 80, 80, 80]
