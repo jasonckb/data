@@ -28,6 +28,7 @@ def scrape_data(urls):
                 cols = row.find_all('td')
                 if len(cols) == 6:
                     cols_text = [col.text.strip() for col in cols]
+                    # 如果預測列為空，將其設置為 None
                     if cols_text[3] == '':
                         cols_text[3] = None
                     data.append([title] + cols_text)
@@ -151,10 +152,12 @@ def create_chart(data, indicator):
         secondary_y=False,
     )
 
+    # 只獲取最新的預測值
     latest_forecast = next((f for f in forecasts if f is not None), None)
     latest_date = dates[0]
 
     if latest_forecast is not None:
+        # 只從最新日期開始繪製預測線
         forecast_dates = [d for d in dates if d <= latest_date]
         forecast_values = [latest_forecast] * len(forecast_dates)
         
@@ -177,32 +180,7 @@ def create_chart(data, indicator):
     )
 
     return fig
-
-def color_rows(row):
-    base_style = {
-        'text-align': 'center',
-        'vertical-align': 'middle',
-        'height': '50px',
-        'white-space': 'pre-wrap',
-        'word-wrap': 'break-word',
-        'font-size': '14px',
-        'padding': '5px'
-    }
-    if row.name < 5:  # 就業數據
-        base_style['background-color'] = '#FFFFE0'
-    elif 5 <= row.name < 11:  # 通貨膨脹數據
-        base_style['background-color'] = '#E6E6FA'
-    else:  # 其他經濟指標
-        base_style['background-color'] = '#E6F3FF'
-    return [base_style] * len(row)
-
-def color_text(val):
-    if val == '較差':
-        return 'color: red; font-weight: bold;'
-    elif val == '較好':
-        return 'color: green; font-weight: bold;'
-    return ''
-
+    
 def main():
     st.title("美國經濟數據分析器")
 
@@ -231,6 +209,7 @@ def main():
         "https://www.investing.com/economic-calendar/core-durable-goods-orders-59",
     ]
 
+    # 將爬取數據的按鈕放在主頁面
     if 'indicators' not in st.session_state:
         st.session_state.indicators = {}
 
@@ -248,6 +227,7 @@ def main():
                 if not df.empty:
                     st.success("數據爬取成功！")
                     
+                    # 保存原始數據
                     st.session_state.raw_df = df
                     
                     processed_data, indicators = process_data(df)
@@ -269,6 +249,7 @@ def main():
             st.subheader("原始數據")
             st.dataframe(st.session_state.raw_df)
         
+        # 添加下載原始數據的按鈕
         csv_raw = st.session_state.raw_df.to_csv(index=False).encode('utf-8')
         st.download_button(
             label="下載原始數據為CSV",
@@ -280,37 +261,78 @@ def main():
     if st.session_state.processed_df is not None:
         st.subheader("數據總結")
         
+        def color_rows(row):
+            if row.name < 5:  # 就業數據
+                return ['background-color: #FFFFE0'] * len(row)
+            elif 5 <= row.name < 11:  # 通貨膨脹數據
+                return ['background-color: #E6E6FA'] * len(row)
+            else:  # 其他經濟指標
+                return ['background-color: #E6F3FF'] * len(row)
+        
+        def color_rows(row):
+            base_style = {
+                'text-align': 'center',
+                'vertical-align': 'middle',
+                'height': '50px',
+                'white-space': 'pre-wrap',
+                'word-wrap': 'break-word',
+                'font-size': '14px',
+                'padding': '5px'
+            }
+            if row.name < 5:  # 就業數據
+                base_style['background-color'] = '#FFFFE0'
+            elif 5 <= row.name < 11:  # 通貨膨脹數據
+                base_style['background-color'] = '#E6E6FA'
+            else:  # 其他經濟指標
+                base_style['background-color'] = '#E6F3FF'
+            return [base_style] * len(row)
+        
+        def color_text(val):
+            if val == '較差':
+                return 'color: red; font-weight: bold;'
+            elif val == '較好':
+                return 'color: green; font-weight: bold;'
+            return ''
+        
         styled_df = st.session_state.processed_df.style.apply(color_rows, axis=1)
         styled_df = styled_df.applymap(color_text, subset=['與預測比較'])
 
-        col_width = [200, 120, 80, 80, 80, 80, 80, 80, 80]
-        styled_df = styled_df.set_table_styles([
-            {'selector': f'th:nth-child({i+1}), td:nth-child({i+1})',
-             'props': [('width', f'{width}px'), ('max-width', f'{width}px')]}
-            for i, width in enumerate(col_width)
-        ])
+# 設置列寬
+col_width = [200, 120, 80, 80, 80, 80, 80, 80, 80]
+styled_df = styled_df.set_table_styles([
+    {'selector': f'th:nth-child({i+1}), td:nth-child({i+1})',
+     'props': [('width', f'{width}px'), ('max-width', f'{width}px')]}
+    for i, width in enumerate(col_width)
+])
 
-        styled_df = styled_df.set_table_styles([
-            {'selector': 'th', 'props': [('text-align', 'center'), ('font-weight', 'bold')]},
-            {'selector': 'td', 'props': [('text-align', 'center')]},
-            {'selector': '', 'props': [('border', '1px solid #ddd')]},
-            {'selector': 'tbody tr:hover', 'props': [('background-color', '#f5f5f5')]},
-        ])
+# 設置表格樣式
+styled_df = styled_df.set_table_styles([
+    {'selector': 'th', 'props': [('text-align', 'center'), ('font-weight', 'bold')]},
+    {'selector': 'td', 'props': [('text-align', 'center')]},
+    {'selector': '', 'props': [('border', '1px solid #ddd')]},
+    {'selector': 'tbody tr:hover', 'props': [('background-color', '#f5f5f5')]},
+])
         
+        # 創建兩列佈局
         col1, col2 = st.columns([3, 2])
         
         with col1:
-            st.dataframe(styled_df, height=600, use_container_width=True)
+            # 顯示數據表格
+            st.dataframe(styled_df)
         
         with col2:
+            # 創建一個空的佔位符來顯示圖表
             chart_placeholder = st.empty()
         
+        # 為每個指標創建一個按鈕在側邊欄
         st.sidebar.header("選擇指標")
         for index, row in st.session_state.processed_df.iterrows():
             if st.sidebar.button(row['指標']):
+                # 獲取該指標的所有數據
                 indicator_data = st.session_state.indicators.get(row['指標'], [])
                 indicator_data = [d for d in indicator_data if d.get('Actual')]
                 if indicator_data:
+                    # 創建並顯示圖表
                     fig = create_chart(indicator_data, row['指標'])
                     chart_placeholder.plotly_chart(fig)
                 else:
@@ -323,8 +345,8 @@ def main():
             file_name="processed_us_economic_data.csv",
             mime="text/csv",
         )
-        
-        st.warning("注意：此爬蟲和分析器僅用於教育目的。請尊重網站的服務條款和robots.txt文件。")
+
+    st.warning("注意：此爬蟲和分析器僅用於教育目的。請尊重網站的服務條款和robots.txt文件。")
 
 if __name__ == "__main__":
     main()
