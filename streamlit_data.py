@@ -284,13 +284,13 @@ def main():
                 return 'color: green'
             return ''
 
-        styled_df = st.session_state.processed_df.style.apply(color_rows, axis=1)
-        styled_df = styled_df.applymap(color_text, subset=['與預測比較'])
-        styled_df = styled_df.set_properties(**{
-            'text-align': 'center',
-            'vertical-align': 'middle',
-            'height': '50px'  # 調整單元格高度
-        })
+styled_df = st.session_state.processed_df.style.apply(color_rows, axis=1)
+styled_df = styled_df.applymap(color_text, subset=['與預測比較'])
+styled_df = styled_df.set_properties(**{
+    'text-align': 'center',
+    'vertical-align': 'middle',
+    'height': '50px'  # 調整單元格高度
+})
         
         # 創建兩列佈局
         col1, col2 = st.columns([3, 2])
@@ -329,4 +329,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
