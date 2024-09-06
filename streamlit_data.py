@@ -12,6 +12,10 @@ logging.basicConfig(level=logging.INFO)
 
 st.set_page_config(page_title="美國經濟數據分析 (Jason Chan)", layout="wide")
 
+def safe_strip(value):
+    """安全地對值進行 strip 操作"""
+    return value.strip() if isinstance(value, str) else value
+
 def scrape_data(urls):
     data = []
     for url in urls:
@@ -27,14 +31,14 @@ def scrape_data(urls):
                     break
                 cols = row.find_all('td')
                 if len(cols) == 6:
-                    cols_text = [col.text.strip() for col in cols]
+                    cols_text = [safe_strip(col.text) for col in cols]
                     # 如果預測列為空，將其設置為 None
                     if cols_text[3] == '':
                         cols_text[3] = None
                     data.append([title] + cols_text)
                     row_counter += 1
         except Exception as e:
-            st.error(f"爬取 {url} 時出錯: {str(e)}")
+            logger.error(f"爬取 {url} 時出錯: {str(e)}")
     
     return pd.DataFrame(data, columns=['Title', 'Date', 'Time', 'Actual', 'Forecast', 'Previous', 'Importance'])
 
@@ -91,11 +95,11 @@ def process_data(df):
         if indicator in indicators:
             date = parse_date(row['Date'])
             if date is None:
-                logging.warning(f"無法解析日期: {row['Date']} 對於指標: {indicator}")
+                logger.warning(f"無法解析日期: {row['Date']} 對於指標: {indicator}")
                 continue
 
-            forecast = row.get('Forecast', '').strip()
-            actual = row.get('Actual', '').strip()
+            forecast = safe_strip(row.get('Forecast', ''))
+            actual = safe_strip(row.get('Actual', ''))
             
             vs_forecast = ''
             if actual and forecast and forecast != '-':
@@ -142,8 +146,8 @@ def process_data(df):
 
 def create_chart(data, indicator):
     dates = [d['Date'] for d in data]
-    actuals = [float(d['Actual'].rstrip('K%M')) if d['Actual'] and d['Actual'] not in ['', 'None'] else None for d in data]
-    forecasts = [float(d['Forecast'].rstrip('K%M')) if d['Forecast'] and d['Forecast'] not in ['', 'None'] else None for d in data]
+    actuals = [float(safe_strip(d['Actual']).rstrip('K%M')) if d['Actual'] and d['Actual'] not in ['', 'None'] else None for d in data]
+    forecasts = [float(safe_strip(d['Forecast']).rstrip('K%M')) if d['Forecast'] and d['Forecast'] not in ['', 'None'] else None for d in data]
     
     fig = make_subplots(specs=[[{"secondary_y": True}]])
 
@@ -242,7 +246,7 @@ def main():
                     st.warning("沒有爬取到任何數據。請檢查URL並重試。")
             except Exception as e:
                 st.error(f"處理過程中發生錯誤: {str(e)}")
-                logging.exception("處理過程中發生錯誤")
+                logger.exception("處理過程中發生錯誤")
 
     if st.session_state.raw_df is not None:
         with st.expander("點擊查看原始數據"):
