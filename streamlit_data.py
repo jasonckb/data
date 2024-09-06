@@ -270,48 +270,27 @@ def main():
                 return ['background-color: #E6F3FF'] * len(row)
         
         def color_rows(row):
-            base_style = {
-                'text-align': 'center',
-                'vertical-align': 'middle',
-                'height': '50px',
-                'white-space': 'pre-wrap',
-                'word-wrap': 'break-word',
-                'font-size': '14px',
-                'padding': '5px'
-            }
             if row.name < 5:  # 就業數據
-                base_style['background-color'] = '#FFFFE0'
+                return ['background-color: #FFFFE0; text-align: center; vertical-align: middle'] * len(row)
             elif 5 <= row.name < 11:  # 通貨膨脹數據
-                base_style['background-color'] = '#E6E6FA'
+                return ['background-color: #E6E6FA; text-align: center; vertical-align: middle'] * len(row)
             else:  # 其他經濟指標
-                base_style['background-color'] = '#E6F3FF'
-            return [base_style] * len(row)
+                return ['background-color: #E6F3FF; text-align: center; vertical-align: middle'] * len(row)
         
         def color_text(val):
             if val == '較差':
-                return 'color: red; font-weight: bold;'
+                return 'color: red'
             elif val == '較好':
-                return 'color: green; font-weight: bold;'
+                return 'color: green'
             return ''
-        
-        styled_df = st.session_state.processed_df.style.apply(color_rows, axis=1)
-        styled_df = styled_df.applymap(color_text, subset=['與預測比較'])
 
-# 設置列寬
-col_width = [200, 120, 80, 80, 80, 80, 80, 80, 80]
-styled_df = styled_df.set_table_styles([
-    {'selector': f'th:nth-child({i+1}), td:nth-child({i+1})',
-     'props': [('width', f'{width}px'), ('max-width', f'{width}px')]}
-    for i, width in enumerate(col_width)
-])
-
-# 設置表格樣式
-styled_df = styled_df.set_table_styles([
-    {'selector': 'th', 'props': [('text-align', 'center'), ('font-weight', 'bold')]},
-    {'selector': 'td', 'props': [('text-align', 'center')]},
-    {'selector': '', 'props': [('border', '1px solid #ddd')]},
-    {'selector': 'tbody tr:hover', 'props': [('background-color', '#f5f5f5')]},
-])
+styled_df = st.session_state.processed_df.style.apply(color_rows, axis=1)
+styled_df = styled_df.applymap(color_text, subset=['與預測比較'])
+styled_df = styled_df.set_properties(**{
+    'text-align': 'center',
+    'vertical-align': 'middle',
+    'height': '50px'  # 調整單元格高度
+})
         
         # 創建兩列佈局
         col1, col2 = st.columns([3, 2])
