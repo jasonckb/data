@@ -10,7 +10,7 @@ from plotly.subplots import make_subplots
 
 logging.basicConfig(level=logging.INFO)
 
-st.set_page_config(page_title="美國經濟數據分析器", layout="wide")
+st.set_page_config(page_title="美國經濟數據分析 (Jason Chan)", layout="wide")
 
 def scrape_data(urls):
     data = []
@@ -182,7 +182,7 @@ def create_chart(data, indicator):
     return fig
     
 def main():
-    st.title("美國經濟數據分析器")
+    st.title("美國經濟數據分析(Jason Chan)")
 
     urls = [
         "https://www.investing.com/economic-calendar/unemployment-rate-300",
