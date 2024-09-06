@@ -162,7 +162,7 @@ def create_chart(data, indicator):
         forecast_values = [latest_forecast] * len(forecast_dates)
         
         fig.add_trace(
-            go.Scatter(x=forecast_dates, y=forecast_values, name="預測值", 
+            go.Scatter(x=forecast_dates, y=forecast_values, name="預測值(本/前月)", 
                        mode="lines", line=dict(dash="dash", color="gray")),
             secondary_y=False,
         )
@@ -259,7 +259,7 @@ def main():
         )
 
     if st.session_state.processed_df is not None:
-        st.subheader("處理後的數據")
+        st.subheader("數據總結")
         
         def color_rows(row):
             if row.name < 5:  # 就業數據
@@ -269,10 +269,28 @@ def main():
             else:  # 其他經濟指標
                 return ['background-color: #E6F3FF'] * len(row)
         
-        styled_df = st.session_state.processed_df.style.apply(color_rows, axis=1)
-        styled_df = styled_df.apply(lambda x: ['color: red' if x['與預測比較'] == '較差' 
-                                               else 'color: green' if x['與預測比較'] == '較好' 
-                                               else '' for i in x], axis=1)
+        def color_rows(row):
+            if row.name < 5:  # 就業數據
+                return ['background-color: #FFFFE0; text-align: center; vertical-align: middle'] * len(row)
+            elif 5 <= row.name < 11:  # 通貨膨脹數據
+                return ['background-color: #E6E6FA; text-align: center; vertical-align: middle'] * len(row)
+            else:  # 其他經濟指標
+                return ['background-color: #E6F3FF; text-align: center; vertical-align: middle'] * len(row)
+        
+        def color_text(val):
+            if val == '較差':
+                return 'color: red'
+            elif val == '較好':
+                return 'color: green'
+            return ''
+
+styled_df = st.session_state.processed_df.style.apply(color_rows, axis=1)
+styled_df = styled_df.applymap(color_text, subset=['與預測比較'])
+styled_df = styled_df.set_properties(**{
+    'text-align': 'center',
+    'vertical-align': 'middle',
+    'height': '50px'  # 調整單元格高度
+})
         
         # 創建兩列佈局
         col1, col2 = st.columns([3, 2])
