@@ -72,7 +72,7 @@ def process_data(df):
         "United States Unemployment Rate",
         "United States Core PCE Price Index YoY",
         "United States Core PCE Price Index MoM",
-        "United States Core Consumer Price Index (CPI) YoY": []
+        "United States Core Consumer Price Index (CPI) YoY",
         "United States Consumer Price Index (CPI) MoM",
         "United States Core Consumer Price Index (CPI) YoY",
         "United States Core Producer Price Index (PPI) MoM",
