@@ -282,7 +282,7 @@ def main():
         def color_rows(row):
             if row.name < 5:  # 就業數據
                 return ['background-color: #FFFFE0; text-align: center; vertical-align: middle'] * len(row)
-            elif 5 <= row.name < 12:  # 通貨膨脹數據
+            elif 5 <= row.name < 13:  # 通貨膨脹數據
                 return ['background-color: #E6E6FA; text-align: center; vertical-align: middle'] * len(row)
             else:  # 其他經濟指標
                 return ['background-color: #E6F3FF; text-align: center; vertical-align: middle'] * len(row)
