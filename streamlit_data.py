@@ -10,7 +10,7 @@ from plotly.subplots import make_subplots
 
 logging.basicConfig(level=logging.INFO)
 
-st.set_page_config(page_title="美國經濟數據分析 (Jason Chan)", layout="wide")
+st.set_page_config(page_title="美國與中國經濟數據分析 (Jason Chan)", layout="wide")
 
 def safe_strip(value):
     """安全地對值進行 strip 操作"""
@@ -38,51 +38,13 @@ def scrape_data(urls):
                     data.append([title] + cols_text)
                     row_counter += 1
         except Exception as e:
-            logger.error(f"爬取 {url} 時出錯: {str(e)}")
+            logging.error(f"爬取 {url} 時出錯: {str(e)}")
     
     return pd.DataFrame(data, columns=['Title', 'Date', 'Time', 'Actual', 'Forecast', 'Previous', 'Importance'])
 
-def process_data(df):
-    indicators = {
-        "United States Unemployment Rate": [],
-        "United States Nonfarm Payrolls": [],
-        "United States Average Hourly Earnings MoM": [],
-        "United States Average Hourly Earnings YoY": [],
-        "United States ADP Nonfarm Employment Change": [],
-        "United States Core PCE Price Index YoY": [],
-        "United States Core PCE Price Index MoM": [],
-        "United States Consumer Price Index (CPI) YoY": [],
-        "United States Consumer Price Index (CPI) MoM": [],
-        "United States Core Consumer Price Index (CPI) YoY": [],
-        "United States Core Consumer Price Index (CPI) MoM": [],
-        "United States Core Producer Price Index (PPI) MoM": [],
-        "United States Producer Price Index (PPI) MoM": [],
-        "United States ISM Manufacturing PMI": [],
-        "United States ISM Non-Manufacturing PMI": [],
-        "United States Industrial Production YoY": [],
-        "United States Industrial Production MoM": [],
-        "United States Core Retail Sales MoM": [],
-        "United States Retail Sales MoM": [],
-        "United States Housing Starts": [],
-        "United States Existing Home Sales": [],
-        "United States New Home Sales": [],
-        "United States CB Consumer Confidence": [],
-        "United States Gross Domestic Product (GDP) QoQ": [],
-        "United States Durable Goods Orders MoM": [],
-        "United States Core Durable Goods Orders MoM": []
-    }
-
-    lower_is_better = [
-        "United States Unemployment Rate",
-        "United States Core PCE Price Index YoY",
-        "United States Core PCE Price Index MoM",
-        "United States Core Consumer Price Index (CPI) YoY",
-        "United States Core Consumer Price Index (CPI) MoM",
-        "United States Consumer Price Index (CPI) YoY",
-        "United States Consumer Price Index (CPI) MoM",
-        "United States Core Producer Price Index (PPI) MoM",
-        "United States Producer Price Index (PPI) MoM"
-    ]
+def process_data(df, country):
+    indicators = get_indicators(country)
+    lower_is_better = get_lower_is_better(country)
 
     def parse_date(date_str):
         patterns = [
@@ -101,7 +63,7 @@ def process_data(df):
         if indicator in indicators:
             date = parse_date(row['Date'])
             if date is None:
-                logger.warning(f"無法解析日期: {row['Date']} 對於指標: {indicator}")
+                logging.warning(f"無法解析日期: {row['Date']} 對於指標: {indicator}")
                 continue
 
             forecast = safe_strip(row.get('Forecast', ''))
@@ -190,40 +152,140 @@ def create_chart(data, indicator):
     )
 
     return fig
-    
+
+def get_urls(country):
+    if country == "US":
+        return [
+            "https://www.investing.com/economic-calendar/unemployment-rate-300",
+            "https://www.investing.com/economic-calendar/nonfarm-payrolls-227",
+            "https://www.investing.com/economic-calendar/average-hourly-earnings-8",
+            "https://www.investing.com/economic-calendar/average-hourly-earnings-1777",        
+            "https://www.investing.com/economic-calendar/adp-nonfarm-employment-change-1",
+            "https://www.investing.com/economic-calendar/core-pce-price-index-905",
+            "https://www.investing.com/economic-calendar/core-pce-price-index-61",
+            "https://www.investing.com/economic-calendar/cpi-733",
+            "https://www.investing.com/economic-calendar/cpi-69",
+            "https://www.investing.com/economic-calendar/core-cpi-736", 
+            "https://www.investing.com/economic-calendar/core-cpi-56",        
+            "https://www.investing.com/economic-calendar/core-ppi-62",
+            "https://www.investing.com/economic-calendar/ppi-238",
+            "https://www.investing.com/economic-calendar/ism-manufacturing-pmi-173",
+            "https://www.investing.com/economic-calendar/ism-non-manufacturing-pmi-176", 
+            "https://www.investing.com/economic-calendar/industrial-production-1755",
+            "https://www.investing.com/economic-calendar/industrial-production-161",
+            "https://www.investing.com/economic-calendar/core-retail-sales-63",
+            "https://www.investing.com/economic-calendar/retail-sales-256",
+            "https://www.investing.com/economic-calendar/housing-starts-151",
+            "https://www.investing.com/economic-calendar/existing-home-sales-99",
+            "https://www.investing.com/economic-calendar/new-home-sales-222",
+            "https://www.investing.com/economic-calendar/cb-consumer-confidence-48",
+            "https://www.investing.com/economic-calendar/gdp-375",
+            "https://www.investing.com/economic-calendar/durable-goods-orders-86",
+            "https://www.investing.com/economic-calendar/core-durable-goods-orders-59",
+        ]
+    elif country == "China":
+        return [
+            "https://www.investing.com/economic-calendar/chinese-exports-595",
+            "https://www.investing.com/economic-calendar/chinese-imports-867",
+            "https://www.investing.com/economic-calendar/chinese-trade-balance-466",
+            "https://www.investing.com/economic-calendar/chinese-fixed-asset-investment-460",
+            "https://www.investing.com/economic-calendar/chinese-industrial-production-462",
+            "https://www.investing.com/economic-calendar/chinese-unemployment-rate-1793",
+            "https://www.investing.com/economic-calendar/chinese-cpi-743",
+            "https://www.investing.com/economic-calendar/chinese-cpi-459",
+            "https://www.investing.com/economic-calendar/chinese-ppi-464",
+            "https://www.investing.com/economic-calendar/chinese-new-loans-1060",
+            "https://www.investing.com/economic-calendar/chinese-outstanding-loan-growth-1081",
+            "https://www.investing.com/economic-calendar/chinese-total-social-financing-1919",
+            "https://www.investing.com/economic-calendar/china-loan-prime-rate-5y-2225",
+            "https://www.investing.com/economic-calendar/pboc-loan-prime-rate-1967",
+            "https://www.investing.com/economic-calendar/chinese-caixin-services-pmi-596",
+            "https://www.investing.com/economic-calendar/chinese-composite-pmi-1913",
+            "https://www.investing.com/economic-calendar/chinese-manufacturing-pmi-594",
+            "https://www.investing.com/economic-calendar/chinese-non-manufacturing-pmi-831",
+        ]
+
+def get_indicators(country):
+    if country == "US":
+        return {
+            "United States Unemployment Rate": [],
+            "United States Nonfarm Payrolls": [],
+            "United States Average Hourly Earnings MoM": [],
+            "United States Average Hourly Earnings YoY": [],
+            "United States ADP Nonfarm Employment Change": [],
+            "United States Core PCE Price Index YoY": [],
+            "United States Core PCE Price Index MoM": [],
+            "United States Consumer Price Index (CPI) YoY": [],
+            "United States Consumer Price Index (CPI) MoM": [],
+            "United States Core Consumer Price Index (CPI) YoY": [],
+            "United States Core Consumer Price Index (CPI) MoM": [],
+            "United States Core Producer Price Index (PPI) MoM": [],
+            "United States Producer Price Index (PPI) MoM": [],
+            "United States ISM Manufacturing PMI": [],
+            "United States ISM Non-Manufacturing PMI": [],
+            "United States Industrial Production YoY": [],
+            "United States Industrial Production MoM": [],
+            "United States Core Retail Sales MoM": [],
+            "United States Retail Sales MoM": [],
+            "United States Housing Starts": [],
+            "United States Existing Home Sales": [],
+            "United States New Home Sales": [],
+            "United States CB Consumer Confidence": [],
+            "United States Gross Domestic Product (GDP) QoQ": [],
+            "United States Durable Goods Orders MoM": [],
+            "United States Core Durable Goods Orders MoM": []
+        }
+    elif country == "China":
+        return {
+            "China Exports YoY": [],
+            "China Imports YoY": [],
+            "China Trade Balance (USD)": [],
+            "China Fixed Asset Investment YoY": [],
+            "China Industrial Production YoY": [],
+            "Chinese Unemployment Rate": [],
+            "China Consumer Price Index (CPI) MoM": [],
+            "China Consumer Price Index (CPI) YoY": [],
+            "China Producer Price Index (PPI) YoY": [],
+            "China New Loans": [],
+            "China Outstanding Loan Growth YoY": [],
+            "China Total Social Financing": [],
+            "China Loan Prime Rate 5Y": [],
+            "People's Bank of China Loan Prime Rate": [],
+            "China Caixin Services Purchasing Managers Index (PMI)": [],
+            "China Composite Purchasing Managers' Index (PMI)": [],
+            "China Manufacturing Purchasing Managers Index (PMI)": [],
+            "China Non-Manufacturing Purchasing Managers Index (PMI)": []
+        }
+
+def get_lower_is_better(country):
+    if country == "US":
+        return [
+            "United States Unemployment Rate",
+            "United States Core PCE Price Index YoY",
+            "United States Core PCE Price Index MoM",
+            "United States Core Consumer Price Index (CPI) YoY",
+            "United States Core Consumer Price Index (CPI) MoM",
+            "United States Consumer Price Index (CPI) YoY",
+            "United States Consumer Price Index (CPI) MoM",
+            "United States Core Producer Price Index (PPI) MoM",
+            "United States Producer Price Index (PPI) MoM"
+        ]
+    elif country == "China":
+        return [
+            "Chinese Unemployment Rate",
+            "China Consumer Price Index (CPI) MoM",
+            "China Consumer Price Index (CPI) YoY",
+            "China Producer Price Index (PPI) YoY",
+            "China Loan Prime Rate 5Y",
+            "People's Bank of China Loan Prime Rate"
+        ]
+
 def main():
-    st.title("美國經濟數據分析(Jason Chan)")
+    st.title("美國與中國經濟數據分析(Jason Chan)")
 
-    urls = [
-        "https://www.investing.com/economic-calendar/unemployment-rate-300",
-        "https://www.investing.com/economic-calendar/nonfarm-payrolls-227",
-        "https://www.investing.com/economic-calendar/average-hourly-earnings-8",
-        "https://www.investing.com/economic-calendar/average-hourly-earnings-1777",        
-        "https://www.investing.com/economic-calendar/adp-nonfarm-employment-change-1",
-        "https://www.investing.com/economic-calendar/core-pce-price-index-905",
-        "https://www.investing.com/economic-calendar/core-pce-price-index-61",
-        "https://www.investing.com/economic-calendar/cpi-733",
-        "https://www.investing.com/economic-calendar/cpi-69",
-        "https://www.investing.com/economic-calendar/core-cpi-736", 
-        "https://www.investing.com/economic-calendar/core-cpi-56",        
-        "https://www.investing.com/economic-calendar/core-ppi-62",
-        "https://www.investing.com/economic-calendar/ppi-238",
-        "https://www.investing.com/economic-calendar/ism-manufacturing-pmi-173",
-        "https://www.investing.com/economic-calendar/ism-non-manufacturing-pmi-176", 
-        "https://www.investing.com/economic-calendar/industrial-production-1755",
-        "https://www.investing.com/economic-calendar/industrial-production-161",
-        "https://www.investing.com/economic-calendar/core-retail-sales-63",
-        "https://www.investing.com/economic-calendar/retail-sales-256",
-        "https://www.investing.com/economic-calendar/housing-starts-151",
-        "https://www.investing.com/economic-calendar/existing-home-sales-99",
-        "https://www.investing.com/economic-calendar/new-home-sales-222",
-        "https://www.investing.com/economic-calendar/cb-consumer-confidence-48",
-        "https://www.investing.com/economic-calendar/gdp-375",
-        "https://www.investing.com/economic-calendar/durable-goods-orders-86",
-        "https://www.investing.com/economic-calendar/core-durable-goods-orders-59",
-    ]
+    # 添加下拉選單到側邊欄
+    country = st.sidebar.selectbox("選擇國家", ["US", "China"])
 
-    # 將爬取數據的按鈕放在主頁面
     if 'indicators' not in st.session_state:
         st.session_state.indicators = {}
 
@@ -236,6 +298,7 @@ def main():
     if st.button("爬取並分析數據"):
         with st.spinner("正在爬取和分析數據... 這可能需要幾分鐘。"):
             try:
+                urls = get_urls(country)
                 df = scrape_data(urls)
                 
                 if not df.empty:
@@ -244,7 +307,7 @@ def main():
                     # 保存原始數據
                     st.session_state.raw_df = df
                     
-                    processed_data, indicators = process_data(df)
+                    processed_data, indicators = process_data(df, country)
                     
                     if processed_data:
                         st.success("數據分析成功！")
@@ -256,7 +319,7 @@ def main():
                     st.warning("沒有爬取到任何數據。請檢查URL並重試。")
             except Exception as e:
                 st.error(f"處理過程中發生錯誤: {str(e)}")
-                logger.exception("處理過程中發生錯誤")
+                logging.exception("處理過程中發生錯誤")
 
     if st.session_state.raw_df is not None:
         with st.expander("點擊查看原始數據"):
@@ -268,7 +331,7 @@ def main():
         st.download_button(
             label="下載原始數據為CSV",
             data=csv_raw,
-            file_name="raw_us_economic_data.csv",
+            file_name=f"raw_{country.lower()}_economic_data.csv",
             mime="text/csv",
         )
 
@@ -276,20 +339,22 @@ def main():
         st.subheader("數據總結")
         
         def color_rows(row):
-            if row.name < 5:  # 就業數據
-                return ['background-color: #FFFFE0'] * len(row)
-            elif 5 <= row.name < 12:  # 通貨膨脹數據
-                return ['background-color: #E6E6FA'] * len(row)
-            else:  # 其他經濟指標
-                return ['background-color: #E6F3FF'] * len(row)
-        
-        def color_rows(row):
-            if row.name < 5:  # 就業數據
-                return ['background-color: #FFFFE0; text-align: center; vertical-align: middle'] * len(row)
-            elif 5 <= row.name < 13:  # 通貨膨脹數據
-                return ['background-color: #E6E6FA; text-align: center; vertical-align: middle'] * len(row)
-            else:  # 其他經濟指標
-                return ['background-color: #E6F3FF; text-align: center; vertical-align: middle'] * len(row)
+            if country == "US":
+                if row.name < 5:  # 就業數據
+                    return ['background-color: #FFFFE0; text-align: center; vertical-align: middle'] * len(row)
+                elif 5 <= row.name < 13:  # 通貨膨脹數據
+                    return ['background-color: #E6E6FA; text-align: center; vertical-align: middle'] * len(row)
+                else:  # 其他經濟指標
+                    return ['background-color: #E6F3FF; text-align: center; vertical-align: middle'] * len(row)
+            elif country == "China":
+                if row.name < 6:  # 前6個指標
+                    return ['background-color: #FFFFE0; text-align: center; vertical-align: middle'] * len(row)
+                elif 6 <= row.name < 9:  # 7-9個指標
+                    return ['background-color: #E6E6FA; text-align: center; vertical-align: middle'] * len(row)
+                elif 9 <= row.name < 14:  # 10-14個指標
+                    return ['background-color: #E6F3FF; text-align: center; vertical-align: middle'] * len(row)
+                else:  # 15-18個指標
+                    return ['background-color: #FFFFFF; text-align: center; vertical-align: middle'] * len(row)
         
         def color_text(val):
             if val == '較差':
@@ -335,7 +400,7 @@ def main():
         st.download_button(
             label="下載處理後的數據為CSV",
             data=csv,
-            file_name="processed_us_economic_data.csv",
+            file_name=f"processed_{country.lower()}_economic_data.csv",
             mime="text/csv",
         )
 
