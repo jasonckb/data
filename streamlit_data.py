@@ -51,7 +51,7 @@ def process_data(df):
         "United States ADP Nonfarm Employment Change": [],
         "United States Core PCE Price Index YoY": [],
         "United States Core PCE Price Index MoM": [],
-        "United States Consumer Price Index (CPI) MoM": [],
+        "United States Consumer Price Index (CPI) YoY": [],
         "United States Core Consumer Price Index (CPI) YoY": [],
         "United States Core Producer Price Index (PPI) MoM": [],
         "United States Producer Price Index (PPI) MoM": [],
@@ -73,7 +73,7 @@ def process_data(df):
         "United States Core PCE Price Index YoY",
         "United States Core PCE Price Index MoM",
         "United States Core Consumer Price Index (CPI) YoY",
-        "United States Consumer Price Index (CPI) MoM",
+        "United States Consumer Price Index (CPI) YoY",
         "United States Core Consumer Price Index (CPI) YoY",
         "United States Core Producer Price Index (PPI) MoM",
         "United States Producer Price Index (PPI) MoM"
