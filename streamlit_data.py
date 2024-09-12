@@ -272,10 +272,7 @@ def get_lower_is_better(country):
         ]
     elif country == "China":
         return [
-            "Chinese Unemployment Rate",
-            "China Consumer Price Index (CPI) MoM",
-            "China Consumer Price Index (CPI) YoY",
-            "China Producer Price Index (PPI) YoY",
+            "Chinese Unemployment Rate",            
             "China Loan Prime Rate 5Y",
             "People's Bank of China Loan Prime Rate"
         ]
