@@ -413,6 +413,6 @@ def main():
         )
 
     st.warning("注意：此爬蟲和分析器僅用於教育目的丶不保證資料準確性。請尊重網站的服務條款和robots.txt文件。數據來源: investing.com")
-
+    st.warning("注意：Lower Inflation data is good in US as Inflation is the problem; Higher in China is good as Deflation is the problem")
 if __name__ == "__main__":
     main()
