@@ -58,6 +58,27 @@ def process_data(df, country):
                 return datetime.strptime(match.group(1), '%b %d, %Y')
         return None
 
+    def compare_values(actual, forecast, indicator):
+        def parse_value(value):
+            if isinstance(value, str):
+                value = value.strip().rstrip('%B')
+                try:
+                    return float(value)
+                except ValueError:
+                    return None
+            return value
+
+        actual_value = parse_value(actual)
+        forecast_value = parse_value(forecast)
+
+        if actual_value is None or forecast_value is None:
+            return ''
+
+        if indicator in lower_is_better:
+            return "較好" if actual_value < forecast_value else "較差" if actual_value > forecast_value else "持平"
+        else:
+            return "較好" if actual_value > forecast_value else "較差" if actual_value < forecast_value else "持平"
+
     for _, row in df.iterrows():
         indicator = row['Title'].split(' - ')[0]
         if indicator in indicators:
@@ -69,17 +90,7 @@ def process_data(df, country):
             forecast = safe_strip(row.get('Forecast', ''))
             actual = safe_strip(row.get('Actual', ''))
             
-            vs_forecast = ''
-            if actual and forecast and forecast != '-':
-                try:
-                    actual_value = float(actual.rstrip('K%M'))
-                    forecast_value = float(forecast.rstrip('K%M'))
-                    if indicator in lower_is_better:
-                        vs_forecast = "較好" if actual_value < forecast_value else "較差" if actual_value > forecast_value else "持平"
-                    else:
-                        vs_forecast = "較好" if actual_value > forecast_value else "較差" if actual_value < forecast_value else "持平"
-                except ValueError:
-                    vs_forecast = ''
+            vs_forecast = compare_values(actual, forecast, indicator)
             
             indicators[indicator].append({
                 "Date": date,
