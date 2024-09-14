@@ -144,7 +144,12 @@ def safe_strip(value):
 def scrape_data(urls):
     data = []
     current_date = datetime.now()
-    next_month = (current_date.replace(day=1) + timedelta(days=32)).replace(day=1)
+    current_month = current_date.replace(day=1)
+    next_month = (current_month + timedelta(days=32)).replace(day=1)
+
+    def is_future_date(date_str):
+        date, _ = parse_date(date_str)
+        return date and date >= next_month
 
     for url in urls:
         try:
@@ -160,8 +165,7 @@ def scrape_data(urls):
                 cols = row.find_all('td')
                 if len(cols) == 6:
                     date_str = safe_strip(cols[0].text)
-                    date, _ = parse_date(date_str)
-                    if date and date < next_month:  # Only include data before next month
+                    if not is_future_date(date_str):  # Only include data not in the future
                         cols_text = [safe_strip(col.text) for col in cols]
                         if cols_text[3] == '':
                             cols_text[3] = None
