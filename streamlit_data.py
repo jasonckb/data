@@ -113,36 +113,36 @@ def process_data(df, country):
             sorted_data = sorted(data, key=lambda x: x['Date'], reverse=True)
             latest = sorted_data[0]
             
-            if latest['MonthInParentheses'] != current_month:
-                # Next month's data
+            # Check if the most recent data is for a future month
+            if latest['Date'].strftime("%b") != current_month:
+                # Future month data
                 row = [
                     indicator,
-                    latest['Date'].strftime("%b %d, %Y") + f" ({latest['MonthInParentheses']})",
+                    latest['Date'].strftime("%b %d, %Y (%b)"),
+                    'None',
                     'None',
                     'None'
                 ]
-                actuals = ['None']
+                # Use data from the previous month for the remaining columns
                 for i in range(1, 5):
                     if i < len(sorted_data):
-                        actuals.append(sorted_data[i].get('Actual') or 'None')
+                        row.append(sorted_data[i].get('Actual') or 'None')
                     else:
-                        actuals.append('None')
+                        row.append('None')
             else:
-                # Current month or past data (original logic)
+                # Use your original logic for current month or past data
                 row = [
                     indicator,
-                    latest['Date'].strftime("%b %d, %Y") + f" ({latest['MonthInParentheses']})",
+                    latest['Date'].strftime("%b %d, %Y (%b)"),
                     latest['Vs Forecast'],
                     latest['Forecast'] if latest['Forecast'] else 'None'
                 ]
-                actuals = []
                 for i in range(5):
                     if i < len(sorted_data):
-                        actuals.append(sorted_data[i].get('Actual') or 'None')
+                        row.append(sorted_data[i].get('Actual') or 'None')
                     else:
-                        actuals.append('None')
+                        row.append('None')
             
-            row.extend(actuals)
             processed_data.append(row)
         else:
             logging.warning(f"沒有數據用於指標: {indicator}")
