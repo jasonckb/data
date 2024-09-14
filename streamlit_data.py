@@ -112,21 +112,30 @@ def process_data(df, country):
             # Sort by date, most recent first
             sorted_data = sorted(data, key=lambda x: x['Date'], reverse=True)
             
-            # Find the index of the current or most recent past month's data
-            current_month_index = next((i for i, d in enumerate(sorted_data) if d['MonthInParentheses'] <= current_month), 0)
+            # Determine if we need to shift the data
+            latest_month = sorted_data[0]['MonthInParentheses']
+            shift = 1 if latest_month != current_month else 0
             
             row = [indicator]
             
-            # Add date and comparison
-            row.extend([
-                sorted_data[0]['Date'].strftime("%b %d, %Y") + (f" ({sorted_data[0]['MonthInParentheses']})" if sorted_data[0]['MonthInParentheses'] else ""),
-                sorted_data[current_month_index]['Vs Forecast'],
-                sorted_data[current_month_index]['Forecast'] if sorted_data[current_month_index]['Forecast'] else 'None'
-            ])
+            # Add date (always the most recent)
+            row.append(sorted_data[0]['Date'].strftime("%b %d, %Y") + (f" ({sorted_data[0]['MonthInParentheses']})" if sorted_data[0]['MonthInParentheses'] else ""))
             
-            # Add actual values
+            # Add comparison and forecast (shifted if necessary)
+            if shift and len(sorted_data) > 1:
+                row.extend([
+                    sorted_data[1]['Vs Forecast'],
+                    sorted_data[1]['Forecast'] if sorted_data[1]['Forecast'] else 'None'
+                ])
+            else:
+                row.extend([
+                    sorted_data[0]['Vs Forecast'],
+                    sorted_data[0]['Forecast'] if sorted_data[0]['Forecast'] else 'None'
+                ])
+            
+            # Add actual values (shifted if necessary)
             for i in range(5):
-                index = current_month_index + i
+                index = i + shift
                 if index < len(sorted_data):
                     row.append(sorted_data[index]['Actual'] or 'None')
                 else:
