@@ -112,22 +112,21 @@ def process_data(df, country):
             # Sort by date, most recent first
             sorted_data = sorted(data, key=lambda x: x['Date'], reverse=True)
             
-            # Determine if we need to shift the data
-            latest_month = sorted_data[0]['MonthInParentheses'] or sorted_data[0]['Date'].strftime("%b")
-            shift = 1 if latest_month != current_month else 0
+            # Find the index of the current month's data
+            current_month_index = next((i for i, d in enumerate(sorted_data) if d['MonthInParentheses'] == current_month), 0)
             
             row = [indicator]
             
             # Add date and comparison
             row.extend([
                 sorted_data[0]['Date'].strftime("%b %d, %Y") + (f" ({sorted_data[0]['MonthInParentheses']})" if sorted_data[0]['MonthInParentheses'] else ""),
-                sorted_data[0]['Vs Forecast'],
-                sorted_data[0]['Forecast'] if sorted_data[0]['Forecast'] else 'None'
+                sorted_data[current_month_index]['Vs Forecast'],
+                sorted_data[current_month_index]['Forecast'] if sorted_data[current_month_index]['Forecast'] else 'None'
             ])
             
             # Add actual values
             for i in range(5):
-                index = i + shift
+                index = current_month_index + i
                 if index < len(sorted_data):
                     row.append(sorted_data[index]['Actual'] or 'None')
                 else:
