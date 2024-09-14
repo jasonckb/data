@@ -12,6 +12,52 @@ logging.basicConfig(level=logging.INFO)
 
 st.set_page_config(page_title="美國與中國經濟數據分析 (Jason Chan)", layout="wide")
 
+def get_urls(country):
+    if country == "US":
+        return [
+            "https://www.investing.com/economic-calendar/unemployment-rate-300",
+            "https://www.investing.com/economic-calendar/nonfarm-payrolls-227",
+            "https://www.investing.com/economic-calendar/average-hourly-earnings-8",
+            "https://www.investing.com/economic-calendar/adp-nonfarm-employment-change-1",
+            "https://www.investing.com/economic-calendar/core-pce-price-index-905",
+            "https://www.investing.com/economic-calendar/personal-spending-235",
+            "https://www.investing.com/economic-calendar/core-cpi-736",
+            "https://www.investing.com/economic-calendar/cpi-733",
+            "https://www.investing.com/economic-calendar/core-ppi-976",
+            "https://www.investing.com/economic-calendar/ppi-728",
+            "https://www.investing.com/economic-calendar/ism-manufacturing-pmi-173",
+            "https://www.investing.com/economic-calendar/ism-non-manufacturing-pmi-175",
+            "https://www.investing.com/economic-calendar/industrial-production-161",
+            "https://www.investing.com/economic-calendar/retail-sales-256",
+            "https://www.investing.com/economic-calendar/housing-starts-23",
+            "https://www.investing.com/economic-calendar/existing-home-sales-99",
+            "https://www.investing.com/economic-calendar/new-home-sales-222",
+            "https://www.investing.com/economic-calendar/cb-consumer-confidence-48",
+            "https://www.investing.com/economic-calendar/gdp-375",
+            "https://www.investing.com/economic-calendar/fed-interest-rate-decision-168"
+        ]
+    elif country == "China":
+        return [
+            "https://www.investing.com/economic-calendar/chinese-exports-1817",
+            "https://www.investing.com/economic-calendar/chinese-imports-1815",
+            "https://www.investing.com/economic-calendar/chinese-trade-balance-466",
+            "https://www.investing.com/economic-calendar/fixed-asset-investment-1814",
+            "https://www.investing.com/economic-calendar/industrial-production-461",
+            "https://www.investing.com/economic-calendar/chinese-unemployment-rate-1870",
+            "https://www.investing.com/economic-calendar/chinese-cpi-459",
+            "https://www.investing.com/economic-calendar/chinese-ppi-1811",
+            "https://www.investing.com/economic-calendar/chinese-new-loans-1801",
+            "https://www.investing.com/economic-calendar/chinese-m2-money-supply-1795",
+            "https://www.investing.com/economic-calendar/chinese-1-year-loan-prime-rate-1984",
+            "https://www.investing.com/economic-calendar/chinese-5-year-loan-prime-rate-1985",
+            "https://www.investing.com/economic-calendar/caixin-services-pmi-1630",
+            "https://www.investing.com/economic-calendar/chinese-composite-pmi-1869",
+            "https://www.investing.com/economic-calendar/manufacturing-pmi-594",
+            "https://www.investing.com/economic-calendar/non-manufacturing-pmi-1492",
+            "https://www.investing.com/economic-calendar/gdp-1873",
+            "https://www.investing.com/economic-calendar/pboc-interest-rate-decision-1540"
+        ]
+
 def safe_strip(value):
     """安全地對值進行 strip 操作"""
     return value.strip() if isinstance(value, str) else value
