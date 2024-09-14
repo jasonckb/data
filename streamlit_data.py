@@ -45,6 +45,7 @@ def scrape_data(urls):
 def process_data(df, country):
     indicators = get_indicators(country)
     lower_is_better = get_lower_is_better(country)
+    current_month = datetime.now().strftime("%b")
 
     def parse_date(date_str):
         patterns = [
@@ -111,28 +112,35 @@ def process_data(df, country):
             # Sort by date, most recent first
             sorted_data = sorted(data, key=lambda x: x['Date'], reverse=True)
             
-            # Find the most recent data point with an actual value
-            latest_actual = next((d for d in sorted_data if d['Actual']), None)
+            # Determine if we need to shift the data
+            latest_month = sorted_data[0]['MonthInParentheses'] or sorted_data[0]['Date'].strftime("%b")
+            shift = 1 if latest_month != current_month else 0
             
-            if latest_actual:
-                row = [
-                    indicator,
-                    latest_actual['Date'].strftime("%b %d, %Y") + (f" ({latest_actual['MonthInParentheses']})" if latest_actual['MonthInParentheses'] else ""),
-                    latest_actual['Vs Forecast'],
-                    latest_actual['Forecast'] if latest_actual['Forecast'] else 'None',
-                    latest_actual['Actual']
-                ]
-                
-                # Add historical data
-                for i in range(1, 5):
-                    if i < len(sorted_data):
-                        row.append(sorted_data[i].get('Actual') or 'None')
-                    else:
-                        row.append('None')
-                
-                processed_data.append(row)
+            row = [indicator]
+            
+            # Add date and comparison
+            if shift:
+                row.extend([
+                    sorted_data[1]['Date'].strftime("%b %d, %Y") + (f" ({sorted_data[1]['MonthInParentheses']})" if sorted_data[1]['MonthInParentheses'] else ""),
+                    sorted_data[1]['Vs Forecast'],
+                    sorted_data[1]['Forecast'] if sorted_data[1]['Forecast'] else 'None'
+                ])
             else:
-                logging.warning(f"沒有找到有效的實際數據用於指標: {indicator}")
+                row.extend([
+                    sorted_data[0]['Date'].strftime("%b %d, %Y") + (f" ({sorted_data[0]['MonthInParentheses']})" if sorted_data[0]['MonthInParentheses'] else ""),
+                    sorted_data[0]['Vs Forecast'],
+                    sorted_data[0]['Forecast'] if sorted_data[0]['Forecast'] else 'None'
+                ])
+            
+            # Add actual values
+            for i in range(5):
+                index = i + shift
+                if index < len(sorted_data):
+                    row.append(sorted_data[index]['Actual'] or 'None')
+                else:
+                    row.append('None')
+            
+            processed_data.append(row)
         else:
             logging.warning(f"沒有數據用於指標: {indicator}")
 
