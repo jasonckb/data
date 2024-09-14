@@ -18,45 +18,124 @@ def get_urls(country):
             "https://www.investing.com/economic-calendar/unemployment-rate-300",
             "https://www.investing.com/economic-calendar/nonfarm-payrolls-227",
             "https://www.investing.com/economic-calendar/average-hourly-earnings-8",
+            "https://www.investing.com/economic-calendar/average-hourly-earnings-1777",        
             "https://www.investing.com/economic-calendar/adp-nonfarm-employment-change-1",
             "https://www.investing.com/economic-calendar/core-pce-price-index-905",
-            "https://www.investing.com/economic-calendar/personal-spending-235",
-            "https://www.investing.com/economic-calendar/core-cpi-736",
+            "https://www.investing.com/economic-calendar/core-pce-price-index-61",
             "https://www.investing.com/economic-calendar/cpi-733",
-            "https://www.investing.com/economic-calendar/core-ppi-976",
-            "https://www.investing.com/economic-calendar/ppi-728",
+            "https://www.investing.com/economic-calendar/cpi-69",
+            "https://www.investing.com/economic-calendar/core-cpi-736", 
+            "https://www.investing.com/economic-calendar/core-cpi-56",        
+            "https://www.investing.com/economic-calendar/core-ppi-62",
+            "https://www.investing.com/economic-calendar/ppi-238",
             "https://www.investing.com/economic-calendar/ism-manufacturing-pmi-173",
-            "https://www.investing.com/economic-calendar/ism-non-manufacturing-pmi-175",
+            "https://www.investing.com/economic-calendar/ism-non-manufacturing-pmi-176", 
+            "https://www.investing.com/economic-calendar/industrial-production-1755",
             "https://www.investing.com/economic-calendar/industrial-production-161",
+            "https://www.investing.com/economic-calendar/core-retail-sales-63",
             "https://www.investing.com/economic-calendar/retail-sales-256",
-            "https://www.investing.com/economic-calendar/housing-starts-23",
+            "https://www.investing.com/economic-calendar/housing-starts-151",
             "https://www.investing.com/economic-calendar/existing-home-sales-99",
             "https://www.investing.com/economic-calendar/new-home-sales-222",
             "https://www.investing.com/economic-calendar/cb-consumer-confidence-48",
             "https://www.investing.com/economic-calendar/gdp-375",
-            "https://www.investing.com/economic-calendar/fed-interest-rate-decision-168"
+            "https://www.investing.com/economic-calendar/durable-goods-orders-86",
+            "https://www.investing.com/economic-calendar/core-durable-goods-orders-59",
         ]
     elif country == "China":
         return [
-            "https://www.investing.com/economic-calendar/chinese-exports-1817",
-            "https://www.investing.com/economic-calendar/chinese-imports-1815",
+            "https://www.investing.com/economic-calendar/chinese-exports-595",
+            "https://www.investing.com/economic-calendar/chinese-imports-867",
             "https://www.investing.com/economic-calendar/chinese-trade-balance-466",
-            "https://www.investing.com/economic-calendar/fixed-asset-investment-1814",
-            "https://www.investing.com/economic-calendar/industrial-production-461",
-            "https://www.investing.com/economic-calendar/chinese-unemployment-rate-1870",
+            "https://www.investing.com/economic-calendar/chinese-fixed-asset-investment-460",
+            "https://www.investing.com/economic-calendar/chinese-industrial-production-462",
+            "https://www.investing.com/economic-calendar/chinese-unemployment-rate-1793",
+            "https://www.investing.com/economic-calendar/chinese-cpi-743",
             "https://www.investing.com/economic-calendar/chinese-cpi-459",
-            "https://www.investing.com/economic-calendar/chinese-ppi-1811",
-            "https://www.investing.com/economic-calendar/chinese-new-loans-1801",
-            "https://www.investing.com/economic-calendar/chinese-m2-money-supply-1795",
-            "https://www.investing.com/economic-calendar/chinese-1-year-loan-prime-rate-1984",
-            "https://www.investing.com/economic-calendar/chinese-5-year-loan-prime-rate-1985",
-            "https://www.investing.com/economic-calendar/caixin-services-pmi-1630",
-            "https://www.investing.com/economic-calendar/chinese-composite-pmi-1869",
-            "https://www.investing.com/economic-calendar/manufacturing-pmi-594",
-            "https://www.investing.com/economic-calendar/non-manufacturing-pmi-1492",
-            "https://www.investing.com/economic-calendar/gdp-1873",
-            "https://www.investing.com/economic-calendar/pboc-interest-rate-decision-1540"
+            "https://www.investing.com/economic-calendar/chinese-ppi-464",
+            "https://www.investing.com/economic-calendar/chinese-new-loans-1060",
+            "https://www.investing.com/economic-calendar/chinese-outstanding-loan-growth-1081",
+            "https://www.investing.com/economic-calendar/chinese-total-social-financing-1919",
+            "https://www.investing.com/economic-calendar/china-loan-prime-rate-5y-2225",
+            "https://www.investing.com/economic-calendar/pboc-loan-prime-rate-1967",
+            "https://www.investing.com/economic-calendar/chinese-caixin-services-pmi-596",
+            "https://www.investing.com/economic-calendar/chinese-composite-pmi-1913",
+            "https://www.investing.com/economic-calendar/chinese-manufacturing-pmi-594",
+            "https://www.investing.com/economic-calendar/chinese-non-manufacturing-pmi-831",
         ]
+
+def get_indicators(country):
+    if country == "US":
+        return {
+            "United States Unemployment Rate": [],
+            "United States Nonfarm Payrolls": [],
+            "United States Average Hourly Earnings MoM": [],
+            "United States Average Hourly Earnings YoY": [],
+            "United States ADP Nonfarm Employment Change": [],
+            "United States Core PCE Price Index YoY": [],
+            "United States Core PCE Price Index MoM": [],
+            "United States Consumer Price Index (CPI) YoY": [],
+            "United States Consumer Price Index (CPI) MoM": [],
+            "United States Core Consumer Price Index (CPI) YoY": [],
+            "United States Core Consumer Price Index (CPI) MoM": [],
+            "United States Core Producer Price Index (PPI) MoM": [],
+            "United States Producer Price Index (PPI) MoM": [],
+            "United States ISM Manufacturing PMI": [],
+            "United States ISM Non-Manufacturing PMI": [],
+            "United States Industrial Production YoY": [],
+            "United States Industrial Production MoM": [],
+            "United States Core Retail Sales MoM": [],
+            "United States Retail Sales MoM": [],
+            "United States Housing Starts": [],
+            "United States Existing Home Sales": [],
+            "United States New Home Sales": [],
+            "United States CB Consumer Confidence": [],
+            "United States Gross Domestic Product (GDP) QoQ": [],
+            "United States Durable Goods Orders MoM": [],
+            "United States Core Durable Goods Orders MoM": []
+        }
+    elif country == "China":
+        return {
+            "China Exports YoY": [],
+            "China Imports YoY": [],
+            "China Trade Balance (USD)": [],
+            "China Fixed Asset Investment YoY": [],
+            "China Industrial Production YoY": [],
+            "Chinese Unemployment Rate": [],
+            "China Consumer Price Index (CPI) MoM": [],
+            "China Consumer Price Index (CPI) YoY": [],
+            "China Producer Price Index (PPI) YoY": [],
+            "China New Loans": [],
+            "China Outstanding Loan Growth YoY": [],
+            "China Total Social Financing": [],
+            "China Loan Prime Rate 5Y": [],
+            "People's Bank of China Loan Prime Rate": [],
+            "China Caixin Services Purchasing Managers Index (PMI)": [],
+            "China Composite Purchasing Managers' Index (PMI)": [],
+            "China Manufacturing Purchasing Managers Index (PMI)": [],
+            "China Non-Manufacturing Purchasing Managers Index (PMI)": []
+        }
+
+def get_lower_is_better(country):
+    if country == "US":
+        return [
+            "United States Unemployment Rate",
+            "United States Core PCE Price Index YoY",
+            "United States Core PCE Price Index MoM",
+            "United States Core Consumer Price Index (CPI) YoY",
+            "United States Core Consumer Price Index (CPI) MoM",
+            "United States Consumer Price Index (CPI) YoY",
+            "United States Consumer Price Index (CPI) MoM",
+            "United States Core Producer Price Index (PPI) MoM",
+            "United States Producer Price Index (PPI) MoM"
+        ]
+    elif country == "China":
+        return [
+            "Chinese Unemployment Rate",            
+            "China Loan Prime Rate 5Y",
+            "People's Bank of China Loan Prime Rate"
+        ]
+
 
 def safe_strip(value):
     """安全地對值進行 strip 操作"""
