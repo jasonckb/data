@@ -108,14 +108,12 @@ def process_data(df, country):
     for indicator, data in indicators.items():
         if data:
             sorted_data = sorted(data, key=lambda x: x['Date'], reverse=True)
-            current_data = next((d for d in sorted_data if d['Is Current']), None)
-            if current_data is None:
-                continue  # Skip indicators without current month data
+            current_data = next((d for d in sorted_data if d['Is Current']), sorted_data[0])
             
             row = [
                 indicator,
                 current_data['Date'].strftime("%b %d, %Y (%b)"),
-                current_data['Vs Forecast'],
+                current_data['Vs Forecast'] if current_data['Is Current'] else '',
                 current_data['Forecast'] if current_data['Forecast'] else 'None',
                 current_data['Actual'] if current_data['Actual'] else 'None'
             ]
@@ -127,6 +125,8 @@ def process_data(df, country):
                     actuals.append('None')
             row.extend(actuals)
             processed_data.append(row)
+        else:
+            logging.warning(f"沒有數據用於指標: {indicator}")
 
     return processed_data, indicators
 
