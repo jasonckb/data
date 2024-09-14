@@ -112,8 +112,8 @@ def process_data(df, country):
             # Sort by date, most recent first
             sorted_data = sorted(data, key=lambda x: x['Date'], reverse=True)
             
-            # Find the index of the current month's data
-            current_month_index = next((i for i, d in enumerate(sorted_data) if d['MonthInParentheses'] == current_month), 0)
+            # Find the index of the current or most recent past month's data
+            current_month_index = next((i for i, d in enumerate(sorted_data) if d['MonthInParentheses'] <= current_month), 0)
             
             row = [indicator]
             
