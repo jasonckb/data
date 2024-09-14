@@ -46,7 +46,8 @@ def scrape_data(urls):
 def process_data(df, country):
     indicators = get_indicators(country)
     lower_is_better = get_lower_is_better(country)
-    current_month = datetime.now().strftime("%b")
+    current_date = datetime.now()
+    current_month = current_date.strftime("%b")
 
     def parse_date(date_str):
         patterns = [
@@ -118,17 +119,18 @@ def process_data(df, country):
             
             row = [indicator]
             
+            # Always show the most recent date in the "數據更新" column
+            row.append(sorted_data[0]['Date'].strftime("%b %d, %Y") + f" ({sorted_data[0]['MonthInParentheses']})")
+            
             if is_future_month and len(sorted_data) > 1:
-                # For future months, use previous month's data but keep future date
-                row.append(sorted_data[0]['Date'].strftime("%b %d, %Y") + f" ({sorted_data[0]['MonthInParentheses']})")
+                # For future months, use previous month's data
                 row.extend([
                     sorted_data[1]['Vs Forecast'],
                     sorted_data[1]['Forecast'] if sorted_data[1]['Forecast'] else 'None'
                 ])
                 actuals = [sorted_data[i]['Actual'] or 'None' for i in range(1, min(6, len(sorted_data)))]
             else:
-                # For current or past months, use original logic
-                row.append(sorted_data[0]['Date'].strftime("%b %d, %Y") + (f" ({sorted_data[0]['MonthInParentheses']})" if sorted_data[0]['MonthInParentheses'] else ""))
+                # For current or past months, use the most recent data
                 row.extend([
                     sorted_data[0]['Vs Forecast'],
                     sorted_data[0]['Forecast'] if sorted_data[0]['Forecast'] else 'None'
