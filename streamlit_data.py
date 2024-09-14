@@ -114,7 +114,7 @@ def process_data(df, country):
             latest = sorted_data[0]
             
             if latest['MonthInParentheses'] != current_month:
-                # Future month data
+                # Next month's data
                 row = [
                     indicator,
                     latest['Date'].strftime("%b %d, %Y") + f" ({latest['MonthInParentheses']})",
@@ -128,7 +128,7 @@ def process_data(df, country):
                     else:
                         actuals.append('None')
             else:
-                # Current month or past data
+                # Current month or past data (original logic)
                 row = [
                     indicator,
                     latest['Date'].strftime("%b %d, %Y") + f" ({latest['MonthInParentheses']})",
@@ -148,18 +148,6 @@ def process_data(df, country):
             logging.warning(f"沒有數據用於指標: {indicator}")
 
     return processed_data, indicators
-def handle_future_month_data(processed_data):
-    current_month = datetime.now().strftime("%b")
-    
-    for row in processed_data:
-        date_str = row[1]
-        month = date_str.split('(')[-1].strip(')')
-        
-        if month != current_month:
-            # This is a future month, shift the data
-            row[2:] = ['None', 'None'] + row[2:-2]
-    
-    return processed_data
     
 def create_chart(data, indicator):
     dates = [d['Date'] for d in data]
