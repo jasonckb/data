@@ -108,10 +108,7 @@ def process_data(df, country):
     for indicator, data in indicators.items():
         if data:
             sorted_data = sorted(data, key=lambda x: x['Date'], reverse=True)
-            current_data = next((d for d in sorted_data if d['Is Current']), None)
-            if current_data is None:
-                continue  # Skip indicators without current month data
-
+            current_data = next((d for d in sorted_data if d['Is Current']), sorted_data[0])
             row = [
                 indicator,
                 current_data['Date'].strftime("%b %d, %Y (%b)"),
