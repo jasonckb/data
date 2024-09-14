@@ -45,12 +45,20 @@ def scrape_data(urls):
 def process_data(df, country):
     indicators = get_indicators(country)
     lower_is_better = get_lower_is_better(country)
+    current_month = datetime.now().strftime("%b")
 
     def parse_date(date_str):
-        pattern = r'(\w+ \d{2}, \d{4}) \((\w+)\)'
-        match = re.match(pattern, date_str)
-        if match:
-            return datetime.strptime(match.group(1), '%b %d, %Y'), match.group(2)
+        patterns = [
+            r'(\w+ \d{2}, \d{4}) \((\w+)\)',
+            r'(\w+ \d{2}, \d{4})',
+            r'(\w+ \d{2}, \d{4}) \(Q\d\)'
+        ]
+        for pattern in patterns:
+            match = re.match(pattern, date_str)
+            if match:
+                date = datetime.strptime(match.group(1), '%b %d, %Y')
+                month_in_parentheses = match.group(2) if len(match.groups()) > 1 else None
+                return date, month_in_parentheses
         return None, None
 
     def compare_values(actual, forecast, indicator):
@@ -80,7 +88,7 @@ def process_data(df, country):
     for _, row in df.iterrows():
         indicator = row['Title'].split(' - ')[0]
         if indicator in indicators:
-            date, month = parse_date(row['Date'])
+            date, month_in_parentheses = parse_date(row['Date'])
             if date is None:
                 logging.warning(f"無法解析日期: {row['Date']} 對於指標: {indicator}")
                 continue
@@ -92,42 +100,32 @@ def process_data(df, country):
             
             indicators[indicator].append({
                 "Date": date,
-                "Month": month,
+                "MonthInParentheses": month_in_parentheses,
                 "Vs Forecast": vs_forecast,
                 "Forecast": forecast if forecast and forecast != '-' else None,
-                "Actual": actual if actual else None,
+                "Actual": actual if actual else None
             })
 
     processed_data = []
     for indicator, data in indicators.items():
         if data:
-            sorted_data = sorted(data, key=lambda x: x['Date'], reverse=True)
-            
-            # Find the data point for the current month
-            current_data = next((d for d in sorted_data if d['Month'] == current_month), None)
-            
-            if current_data:
-                row = [
-                    indicator,
-                    current_data['Date'].strftime("%b %d, %Y (%b)"),
-                    current_data['Vs Forecast'],
-                    current_data['Forecast'] if current_data['Forecast'] else 'None',
-                    current_data['Actual'] if current_data['Actual'] else 'None'
-                ]
-                
-                # Get historical data, including any future data points
-                historical_data = [d for d in sorted_data if d['Date'] != current_data['Date']]
-                actuals = []
-                for i in range(4):  # Get 4 historical/future data points
-                    if i < len(historical_data):
-                        actuals.append(historical_data[i].get('Actual') or 'None')
-                    else:
-                        actuals.append('None')
-                row.extend(actuals)
-                
-                processed_data.append(row)
-            else:
-                logging.warning(f"沒有找到當前月份的數據用於指標: {indicator}")
+            # Sort by date, but prioritize the current month in parentheses
+            sorted_data = sorted(data, key=lambda x: (x['MonthInParentheses'] != current_month, x['Date']), reverse=True)
+            latest = sorted_data[0]
+            row = [
+                indicator,
+                latest['Date'].strftime("%b %d, %Y") + (f" ({latest['MonthInParentheses']})" if latest['MonthInParentheses'] else ""),
+                latest['Vs Forecast'],
+                latest['Forecast'] if latest['Forecast'] else 'None'
+            ]
+            actuals = []
+            for i in range(5):
+                if i < len(sorted_data):
+                    actuals.append(sorted_data[i].get('Actual') or 'None')
+                else:
+                    actuals.append('None')
+            row.extend(actuals)
+            processed_data.append(row)
         else:
             logging.warning(f"沒有數據用於指標: {indicator}")
 
