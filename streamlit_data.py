@@ -143,6 +143,9 @@ def safe_strip(value):
 
 def scrape_data(urls):
     data = []
+    current_date = datetime.now()
+    next_month = (current_date.replace(day=1) + timedelta(days=32)).replace(day=1)
+
     for url in urls:
         try:
             response = requests.get(url)
@@ -156,12 +159,14 @@ def scrape_data(urls):
                     break
                 cols = row.find_all('td')
                 if len(cols) == 6:
-                    cols_text = [safe_strip(col.text) for col in cols]
-                    # 如果預測列為空，將其設置為 None
-                    if cols_text[3] == '':
-                        cols_text[3] = None
-                    data.append([title] + cols_text)
-                    row_counter += 1
+                    date_str = safe_strip(cols[0].text)
+                    date, _ = parse_date(date_str)
+                    if date and date < next_month:  # Only include data before next month
+                        cols_text = [safe_strip(col.text) for col in cols]
+                        if cols_text[3] == '':
+                            cols_text[3] = None
+                        data.append([title] + cols_text)
+                        row_counter += 1
         except Exception as e:
             logging.error(f"爬取 {url} 時出錯: {str(e)}")
     
@@ -216,16 +221,14 @@ def filter_future_data(df):
 def process_data(df, country):
     indicators = get_indicators(country)
     lower_is_better = get_lower_is_better(country)
-    current_date = datetime.now()
-    current_month = current_date.strftime("%b")
-    next_month = (current_date.replace(day=1) + timedelta(days=32)).replace(day=1)
 
     for _, row in df.iterrows():
         indicator = row['Title'].split(' - ')[0]
         if indicator in indicators:
             date, month_in_parentheses = parse_date(row['Date'])
-            if date is None or date >= next_month:
-                continue  # Skip next month's data
+            if date is None:
+                logging.warning(f"無法解析日期: {row['Date']} 對於指標: {indicator}")
+                continue
 
             forecast = safe_strip(row.get('Forecast', ''))
             actual = safe_strip(row.get('Actual', ''))
