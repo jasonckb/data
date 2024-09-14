@@ -42,54 +42,57 @@ def scrape_data(urls):
     
     return pd.DataFrame(data, columns=['Title', 'Date', 'Time', 'Actual', 'Forecast', 'Previous', 'Importance'])
 
+def parse_date(date_str):
+    patterns = [
+        r'(\w+ \d{2}, \d{4}) \((\w+)\)',
+        r'(\w+ \d{2}, \d{4})',
+        r'(\w+ \d{2}, \d{4}) \(Q\d\)'
+    ]
+    for pattern in patterns:
+        match = re.match(pattern, date_str)
+        if match:
+            date = datetime.strptime(match.group(1), '%b %d, %Y')
+            month_in_parentheses = match.group(2) if len(match.groups()) > 1 else None
+            return date, month_in_parentheses
+    return None, None
+
+def compare_values(actual, forecast, indicator, lower_is_better):
+    def parse_value(value):
+        if isinstance(value, str):
+            value = value.strip().rstrip('%B')
+            try:
+                return float(value)
+            except ValueError:
+                return None
+        return value
+
+    actual_value = parse_value(actual)
+    forecast_value = parse_value(forecast)
+
+    if actual_value is None or forecast_value is None:
+        return ''
+
+    if indicator in lower_is_better:
+        return "較好" if actual_value < forecast_value else "較差" if actual_value > forecast_value else "持平"
+    else:
+        return "較好" if actual_value > forecast_value else "較差" if actual_value < forecast_value else "持平"
+
+def filter_future_data(df):
+    current_month = datetime.now().strftime("%b")
+    return df[df['Date'].apply(lambda x: parse_date(x)[1] != None and parse_date(x)[1] <= current_month)]
 
 def process_data(df, country):
     indicators = get_indicators(country)
     lower_is_better = get_lower_is_better(country)
-    current_month = datetime.now().strftime("%b")
 
-    def parse_date(date_str):
-        patterns = [
-            r'(\w+ \d{2}, \d{4}) \((\w+)\)',
-            r'(\w+ \d{2}, \d{4})',
-            r'(\w+ \d{2}, \d{4}) \(Q\d\)'
-        ]
-        for pattern in patterns:
-            match = re.match(pattern, date_str)
-            if match:
-                date = datetime.strptime(match.group(1), '%b %d, %Y')
-                month_in_parentheses = match.group(2) if len(match.groups()) > 1 else None
-                return date, month_in_parentheses
-        return None, None
-        
-    def compare_values(actual, forecast, indicator):
-        def parse_value(value):
-            if isinstance(value, str):
-                value = value.strip().rstrip('%BKM')
-                try:
-                    return float(value)
-                except ValueError:
-                    return None
-            return value
+    # Filter out future month data
+    filtered_df = filter_future_data(df)
 
-        actual_value = parse_value(actual)
-        forecast_value = parse_value(forecast)
-
-        if actual_value is None or forecast_value is None:
-            return ''
-
-        if indicator in lower_is_better:
-            return "較好" if actual_value < forecast_value else "較差" if actual_value > forecast_value else "持平"
-        else:
-            return "較好" if actual_value > forecast_value else "較差" if actual_value < forecast_value else "持平"
-
-    # Find the current month (most recent month in the data)
-    current_month = max(parse_date(row['Date'])[1] for _, row in df.iterrows() if parse_date(row['Date'])[1])
-
-    for _, row in df.iterrows():
+    # Process the filtered data
+    for _, row in filtered_df.iterrows():
         indicator = row['Title'].split(' - ')[0]
         if indicator in indicators:
-            date, month_in_parentheses = parse_date(row['Date'])
+            date, _ = parse_date(row['Date'])
             if date is None:
                 logging.warning(f"無法解析日期: {row['Date']} 對於指標: {indicator}")
                 continue
@@ -97,58 +100,110 @@ def process_data(df, country):
             forecast = safe_strip(row.get('Forecast', ''))
             actual = safe_strip(row.get('Actual', ''))
             
-            vs_forecast = compare_values(actual, forecast, indicator)
+            vs_forecast = compare_values(actual, forecast, indicator, lower_is_better)
             
             indicators[indicator].append({
                 "Date": date,
-                "MonthInParentheses": month_in_parentheses,
                 "Vs Forecast": vs_forecast,
                 "Forecast": forecast if forecast and forecast != '-' else None,
                 "Actual": actual if actual else None
             })
 
+    # Create processed data
     processed_data = []
     for indicator, data in indicators.items():
         if data:
             sorted_data = sorted(data, key=lambda x: x['Date'], reverse=True)
             latest = sorted_data[0]
-            
-            # Check if the most recent data is for a future month
-            if latest['Date'].strftime("%b") != current_month:
-                # Future month data
-                row = [
-                    indicator,
-                    latest['Date'].strftime("%b %d, %Y (%b)"),
-                    'None',
-                    'None',
-                    'None'
-                ]
-                # Use data from the previous month for the remaining columns
-                for i in range(1, 5):
-                    if i < len(sorted_data):
-                        row.append(sorted_data[i].get('Actual') or 'None')
-                    else:
-                        row.append('None')
-            else:
-                # Use your original logic for current month or past data
-                row = [
-                    indicator,
-                    latest['Date'].strftime("%b %d, %Y (%b)"),
-                    latest['Vs Forecast'],
-                    latest['Forecast'] if latest['Forecast'] else 'None'
-                ]
-                for i in range(5):
-                    if i < len(sorted_data):
-                        row.append(sorted_data[i].get('Actual') or 'None')
-                    else:
-                        row.append('None')
-            
+            row = [
+                indicator,
+                latest['Date'].strftime("%b %d, %Y (%b)"),
+                latest['Vs Forecast'],
+                latest['Forecast'] if latest['Forecast'] else 'None'
+            ]
+            actuals = []
+            for i in range(5):
+                if i < len(sorted_data):
+                    actuals.append(sorted_data[i].get('Actual') or 'None')
+                else:
+                    actuals.append('None')
+            row.extend(actuals)
             processed_data.append(row)
         else:
             logging.warning(f"沒有數據用於指標: {indicator}")
 
     return processed_data, indicators
-    
+
+def get_indicators(country):
+    if country == "US":
+        return {
+            "United States Unemployment Rate": [],
+            "United States Nonfarm Payrolls": [],
+            "United States Average Hourly Earnings MoM": [],
+            "United States Average Hourly Earnings YoY": [],
+            "United States ADP Nonfarm Employment Change": [],
+            "United States Core PCE Price Index YoY": [],
+            "United States Core PCE Price Index MoM": [],
+            "United States Consumer Price Index (CPI) YoY": [],
+            "United States Consumer Price Index (CPI) MoM": [],
+            "United States Core Consumer Price Index (CPI) YoY": [],
+            "United States Core Consumer Price Index (CPI) MoM": [],
+            "United States Core Producer Price Index (PPI) MoM": [],
+            "United States Producer Price Index (PPI) MoM": [],
+            "United States ISM Manufacturing PMI": [],
+            "United States ISM Non-Manufacturing PMI": [],
+            "United States Industrial Production YoY": [],
+            "United States Industrial Production MoM": [],
+            "United States Core Retail Sales MoM": [],
+            "United States Retail Sales MoM": [],
+            "United States Housing Starts": [],
+            "United States Existing Home Sales": [],
+            "United States New Home Sales": [],
+            "United States CB Consumer Confidence": [],
+            "United States Gross Domestic Product (GDP) QoQ": []
+        }
+    elif country == "China":
+        return {
+            "China Gross Domestic Product (GDP) YoY": [],
+            "China Gross Domestic Product (GDP) QoQ": [],
+            "China Retail Sales YoY": [],
+            "China Fixed Asset Investment YoY": [],
+            "China Industrial Production YoY": [],
+            "Chinese Unemployment Rate": [],
+            "China Consumer Price Index (CPI) MoM": [],
+            "China Consumer Price Index (CPI) YoY": [],
+            "China Producer Price Index (PPI) YoY": [],
+            "China New Loans": [],
+            "China Outstanding Loan Growth YoY": [],
+            "China Total Social Financing": [],
+            "China Loan Prime Rate 5Y": [],
+            "People's Bank of China Loan Prime Rate": [],
+            "China Caixin Services Purchasing Managers Index (PMI)": [],
+            "China Composite Purchasing Managers' Index (PMI)": [],
+            "China Manufacturing Purchasing Managers Index (PMI)": [],
+            "China Non-Manufacturing Purchasing Managers Index (PMI)": []
+        }
+
+def get_lower_is_better(country):
+    if country == "US":
+        return [
+            "United States Unemployment Rate",
+            "United States Core PCE Price Index YoY",
+            "United States Core PCE Price Index MoM",
+            "United States Core Consumer Price Index (CPI) YoY",
+            "United States Core Consumer Price Index (CPI) MoM",
+            "United States Consumer Price Index (CPI) YoY",
+            "United States Consumer Price Index (CPI) MoM",
+            "United States Core Producer Price Index (PPI) MoM",
+            "United States Producer Price Index (PPI) MoM"
+        ]
+    elif country == "China":
+        return [
+            "Chinese Unemployment Rate",            
+            "China Loan Prime Rate 5Y",
+            "People's Bank of China Loan Prime Rate"
+        ]
+
 def create_chart(data, indicator):
     dates = [d['Date'] for d in data]
     actuals = [float(safe_strip(d['Actual']).rstrip('K%M')) if d['Actual'] and d['Actual'] not in ['', 'None'] else None for d in data]
@@ -190,136 +245,10 @@ def create_chart(data, indicator):
 
     return fig
 
-def get_urls(country):
-    if country == "US":
-        return [
-            "https://www.investing.com/economic-calendar/unemployment-rate-300",
-            "https://www.investing.com/economic-calendar/nonfarm-payrolls-227",
-            "https://www.investing.com/economic-calendar/average-hourly-earnings-8",
-            "https://www.investing.com/economic-calendar/average-hourly-earnings-1777",        
-            "https://www.investing.com/economic-calendar/adp-nonfarm-employment-change-1",
-            "https://www.investing.com/economic-calendar/core-pce-price-index-905",
-            "https://www.investing.com/economic-calendar/core-pce-price-index-61",
-            "https://www.investing.com/economic-calendar/cpi-733",
-            "https://www.investing.com/economic-calendar/cpi-69",
-            "https://www.investing.com/economic-calendar/core-cpi-736", 
-            "https://www.investing.com/economic-calendar/core-cpi-56",        
-            "https://www.investing.com/economic-calendar/core-ppi-62",
-            "https://www.investing.com/economic-calendar/ppi-238",
-            "https://www.investing.com/economic-calendar/ism-manufacturing-pmi-173",
-            "https://www.investing.com/economic-calendar/ism-non-manufacturing-pmi-176", 
-            "https://www.investing.com/economic-calendar/industrial-production-1755",
-            "https://www.investing.com/economic-calendar/industrial-production-161",
-            "https://www.investing.com/economic-calendar/core-retail-sales-63",
-            "https://www.investing.com/economic-calendar/retail-sales-256",
-            "https://www.investing.com/economic-calendar/housing-starts-151",
-            "https://www.investing.com/economic-calendar/existing-home-sales-99",
-            "https://www.investing.com/economic-calendar/new-home-sales-222",
-            "https://www.investing.com/economic-calendar/cb-consumer-confidence-48",
-            "https://www.investing.com/economic-calendar/gdp-375",
-            "https://www.investing.com/economic-calendar/durable-goods-orders-86",
-            "https://www.investing.com/economic-calendar/core-durable-goods-orders-59",
-        ]
-    elif country == "China":
-        return [
-            "https://www.investing.com/economic-calendar/chinese-exports-595",
-            "https://www.investing.com/economic-calendar/chinese-imports-867",
-            "https://www.investing.com/economic-calendar/chinese-trade-balance-466",
-            "https://www.investing.com/economic-calendar/chinese-fixed-asset-investment-460",
-            "https://www.investing.com/economic-calendar/chinese-industrial-production-462",
-            "https://www.investing.com/economic-calendar/chinese-unemployment-rate-1793",
-            "https://www.investing.com/economic-calendar/chinese-cpi-743",
-            "https://www.investing.com/economic-calendar/chinese-cpi-459",
-            "https://www.investing.com/economic-calendar/chinese-ppi-464",
-            "https://www.investing.com/economic-calendar/chinese-new-loans-1060",
-            "https://www.investing.com/economic-calendar/chinese-outstanding-loan-growth-1081",
-            "https://www.investing.com/economic-calendar/chinese-total-social-financing-1919",
-            "https://www.investing.com/economic-calendar/china-loan-prime-rate-5y-2225",
-            "https://www.investing.com/economic-calendar/pboc-loan-prime-rate-1967",
-            "https://www.investing.com/economic-calendar/chinese-caixin-services-pmi-596",
-            "https://www.investing.com/economic-calendar/chinese-composite-pmi-1913",
-            "https://www.investing.com/economic-calendar/chinese-manufacturing-pmi-594",
-            "https://www.investing.com/economic-calendar/chinese-non-manufacturing-pmi-831",
-        ]
-
-def get_indicators(country):
-    if country == "US":
-        return {
-            "United States Unemployment Rate": [],
-            "United States Nonfarm Payrolls": [],
-            "United States Average Hourly Earnings MoM": [],
-            "United States Average Hourly Earnings YoY": [],
-            "United States ADP Nonfarm Employment Change": [],
-            "United States Core PCE Price Index YoY": [],
-            "United States Core PCE Price Index MoM": [],
-            "United States Consumer Price Index (CPI) YoY": [],
-            "United States Consumer Price Index (CPI) MoM": [],
-            "United States Core Consumer Price Index (CPI) YoY": [],
-            "United States Core Consumer Price Index (CPI) MoM": [],
-            "United States Core Producer Price Index (PPI) MoM": [],
-            "United States Producer Price Index (PPI) MoM": [],
-            "United States ISM Manufacturing PMI": [],
-            "United States ISM Non-Manufacturing PMI": [],
-            "United States Industrial Production YoY": [],
-            "United States Industrial Production MoM": [],
-            "United States Core Retail Sales MoM": [],
-            "United States Retail Sales MoM": [],
-            "United States Housing Starts": [],
-            "United States Existing Home Sales": [],
-            "United States New Home Sales": [],
-            "United States CB Consumer Confidence": [],
-            "United States Gross Domestic Product (GDP) QoQ": [],
-            "United States Durable Goods Orders MoM": [],
-            "United States Core Durable Goods Orders MoM": []
-        }
-    elif country == "China":
-        return {
-            "China Exports YoY": [],
-            "China Imports YoY": [],
-            "China Trade Balance (USD)": [],
-            "China Fixed Asset Investment YoY": [],
-            "China Industrial Production YoY": [],
-            "Chinese Unemployment Rate": [],
-            "China Consumer Price Index (CPI) MoM": [],
-            "China Consumer Price Index (CPI) YoY": [],
-            "China Producer Price Index (PPI) YoY": [],
-            "China New Loans": [],
-            "China Outstanding Loan Growth YoY": [],
-            "China Total Social Financing": [],
-            "China Loan Prime Rate 5Y": [],
-            "People's Bank of China Loan Prime Rate": [],
-            "China Caixin Services Purchasing Managers Index (PMI)": [],
-            "China Composite Purchasing Managers' Index (PMI)": [],
-            "China Manufacturing Purchasing Managers Index (PMI)": [],
-            "China Non-Manufacturing Purchasing Managers Index (PMI)": []
-        }
-
-def get_lower_is_better(country):
-    if country == "US":
-        return [
-            "United States Unemployment Rate",
-            "United States Core PCE Price Index YoY",
-            "United States Core PCE Price Index MoM",
-            "United States Core Consumer Price Index (CPI) YoY",
-            "United States Core Consumer Price Index (CPI) MoM",
-            "United States Consumer Price Index (CPI) YoY",
-            "United States Consumer Price Index (CPI) MoM",
-            "United States Core Producer Price Index (PPI) MoM",
-            "United States Producer Price Index (PPI) MoM"
-        ]
-    elif country == "China":
-        return [
-            "Chinese Unemployment Rate",
-            "China Consumer Price Index (CPI) MoM",
-            "China Consumer Price Index (CPI) YoY",
-            "China Producer Price Index (PPI) YoY",
-            "China Loan Prime Rate 5Y",
-            "People's Bank of China Loan Prime Rate"
-        ]
-
 def main():
     st.title("美國與中國經濟數據分析(Jason Chan)")
 
+    # 添加下拉選單到側邊欄
     country = st.sidebar.selectbox("選擇國家", ["US", "China"])
 
     if 'indicators' not in st.session_state:
@@ -340,6 +269,7 @@ def main():
                 if not df.empty:
                     st.success("數據爬取成功！")
                     
+                    # 保存原始數據
                     st.session_state.raw_df = df
                     
                     processed_data, indicators = process_data(df, country)
@@ -361,6 +291,7 @@ def main():
             st.subheader("原始數據")
             st.dataframe(st.session_state.raw_df)
         
+        # 添加下載原始數據的按鈕
         csv_raw = st.session_state.raw_df.to_csv(index=False).encode('utf-8')
         st.download_button(
             label="下載原始數據為CSV",
@@ -402,23 +333,29 @@ def main():
         styled_df = styled_df.set_properties(**{
             'text-align': 'center',
             'vertical-align': 'middle',
-            'height': '50px'
+            'height': '50px'  # 調整單元格高度
         })
         
-        col1, col2 = st.columns([3, 2])
+        # 創建兩列佈局
+                col1, col2 = st.columns([3, 2])
         
         with col1:
+            # 顯示數據表格
             st.dataframe(styled_df)
         
         with col2:
+            # 創建一個空的佔位符來顯示圖表
             chart_placeholder = st.empty()
         
+        # 為每個指標創建一個按鈕在側邊欄
         st.sidebar.header("選擇指標")
         for index, row in st.session_state.processed_df.iterrows():
             if st.sidebar.button(row['指標']):
+                # 獲取該指標的所有數據
                 indicator_data = st.session_state.indicators.get(row['指標'], [])
                 indicator_data = [d for d in indicator_data if d.get('Actual')]
                 if indicator_data:
+                    # 創建並顯示圖表
                     fig = create_chart(indicator_data, row['指標'])
                     chart_placeholder.plotly_chart(fig)
                 else:
