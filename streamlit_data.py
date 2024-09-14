@@ -45,7 +45,6 @@ def scrape_data(urls):
 def process_data(df, country):
     indicators = get_indicators(country)
     lower_is_better = get_lower_is_better(country)
-    current_month = datetime.now().strftime("%b")
 
     def parse_date(date_str):
         patterns = [
@@ -109,8 +108,13 @@ def process_data(df, country):
     processed_data = []
     for indicator, data in indicators.items():
         if data:
-            # Sort by date, but prioritize the current month in parentheses
+            # Sort by date first to find the most recent month
+            sorted_data = sorted(data, key=lambda x: x['Date'], reverse=True)
+            current_month = sorted_data[0]['MonthInParentheses']
+            
+            # Now sort prioritizing the current month
             sorted_data = sorted(data, key=lambda x: (x['MonthInParentheses'] != current_month, x['Date']), reverse=True)
+            
             latest = sorted_data[0]
             row = [
                 indicator,
