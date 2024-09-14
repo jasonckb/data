@@ -46,8 +46,7 @@ def scrape_data(urls):
 def process_data(df, country):
     indicators = get_indicators(country)
     lower_is_better = get_lower_is_better(country)
-    current_date = datetime.now()
-    current_month = current_date.strftime("%b")
+    current_month = datetime.now().strftime("%b")
 
     def parse_date(date_str):
         patterns = [
@@ -58,10 +57,8 @@ def process_data(df, country):
         for pattern in patterns:
             match = re.match(pattern, date_str)
             if match:
-                date = datetime.strptime(match.group(1), '%b %d, %Y')
-                month_in_parentheses = match.group(2) if len(match.groups()) > 1 else None
-                return date, month_in_parentheses
-        return None, None
+                return datetime.strptime(match.group(1), '%b %d, %Y')
+        return None
         
     def compare_values(actual, forecast, indicator):
         def parse_value(value):
@@ -90,7 +87,7 @@ def process_data(df, country):
     for _, row in df.iterrows():
         indicator = row['Title'].split(' - ')[0]
         if indicator in indicators:
-            date, month_in_parentheses = parse_date(row['Date'])
+            date = parse_date(row['Date'])
             if date is None:
                 logging.warning(f"無法解析日期: {row['Date']} 對於指標: {indicator}")
                 continue
@@ -102,7 +99,6 @@ def process_data(df, country):
             
             indicators[indicator].append({
                 "Date": date,
-                "MonthInParentheses": month_in_parentheses,
                 "Vs Forecast": vs_forecast,
                 "Forecast": forecast if forecast and forecast != '-' else None,
                 "Actual": actual if actual else None
@@ -111,38 +107,39 @@ def process_data(df, country):
     processed_data = []
     for indicator, data in indicators.items():
         if data:
-            # Sort by date, most recent first
             sorted_data = sorted(data, key=lambda x: x['Date'], reverse=True)
-            
-            latest_month = sorted_data[0]['MonthInParentheses']
-            is_future_month = latest_month != current_month
-            
-            row = [indicator]
-            
-            # Always show the most recent date in the "數據更新" column
-            row.append(sorted_data[0]['Date'].strftime("%b %d, %Y") + f" ({sorted_data[0]['MonthInParentheses']})")
-            
-            if is_future_month and len(sorted_data) > 1:
-                # For future months, use previous month's data
-                row.extend([
-                    sorted_data[1]['Vs Forecast'],
-                    sorted_data[1]['Forecast'] if sorted_data[1]['Forecast'] else 'None'
-                ])
-                actuals = [sorted_data[i]['Actual'] or 'None' for i in range(1, min(6, len(sorted_data)))]
-            else:
-                # For current or past months, use the most recent data
-                row.extend([
-                    sorted_data[0]['Vs Forecast'],
-                    sorted_data[0]['Forecast'] if sorted_data[0]['Forecast'] else 'None'
-                ])
-                actuals = [sorted_data[i]['Actual'] or 'None' for i in range(min(5, len(sorted_data)))]
-            
-            row.extend(actuals + ['None'] * (5 - len(actuals)))
+            latest = sorted_data[0]
+            row = [
+                indicator,
+                latest['Date'].strftime("%b %d, %Y (%b)"),
+                latest['Vs Forecast'],
+                latest['Forecast'] if latest['Forecast'] else 'None'
+            ]
+            actuals = []
+            for i in range(5):
+                if i < len(sorted_data):
+                    actuals.append(sorted_data[i].get('Actual') or 'None')
+                else:
+                    actuals.append('None')
+            row.extend(actuals)
             processed_data.append(row)
         else:
             logging.warning(f"沒有數據用於指標: {indicator}")
 
     return processed_data, indicators
+
+def handle_future_month_data(processed_data):
+    current_month = datetime.now().strftime("%b")
+    
+    for row in processed_data:
+        date_str = row[1]
+        month = date_str.split('(')[-1].strip(')')
+        
+        if month != current_month:
+            # This is a future month, shift the data
+            row[2:] = ['None', 'None'] + row[2:-2]
+    
+    return processed_data
     
 def create_chart(data, indicator):
     dates = [d['Date'] for d in data]
