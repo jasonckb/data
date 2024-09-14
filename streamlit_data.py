@@ -108,28 +108,31 @@ def process_data(df, country):
     processed_data = []
     for indicator, data in indicators.items():
         if data:
-            # Sort by date first to find the most recent month
+            # Sort by date, most recent first
             sorted_data = sorted(data, key=lambda x: x['Date'], reverse=True)
-            current_month = sorted_data[0]['MonthInParentheses']
             
-            # Now sort prioritizing the current month
-            sorted_data = sorted(data, key=lambda x: (x['MonthInParentheses'] != current_month, x['Date']), reverse=True)
+            # Find the most recent data point with an actual value
+            latest_actual = next((d for d in sorted_data if d['Actual']), None)
             
-            latest = sorted_data[0]
-            row = [
-                indicator,
-                latest['Date'].strftime("%b %d, %Y") + (f" ({latest['MonthInParentheses']})" if latest['MonthInParentheses'] else ""),
-                latest['Vs Forecast'],
-                latest['Forecast'] if latest['Forecast'] else 'None'
-            ]
-            actuals = []
-            for i in range(5):
-                if i < len(sorted_data):
-                    actuals.append(sorted_data[i].get('Actual') or 'None')
-                else:
-                    actuals.append('None')
-            row.extend(actuals)
-            processed_data.append(row)
+            if latest_actual:
+                row = [
+                    indicator,
+                    latest_actual['Date'].strftime("%b %d, %Y") + (f" ({latest_actual['MonthInParentheses']})" if latest_actual['MonthInParentheses'] else ""),
+                    latest_actual['Vs Forecast'],
+                    latest_actual['Forecast'] if latest_actual['Forecast'] else 'None',
+                    latest_actual['Actual']
+                ]
+                
+                # Add historical data
+                for i in range(1, 5):
+                    if i < len(sorted_data):
+                        row.append(sorted_data[i].get('Actual') or 'None')
+                    else:
+                        row.append('None')
+                
+                processed_data.append(row)
+            else:
+                logging.warning(f"沒有找到有效的實際數據用於指標: {indicator}")
         else:
             logging.warning(f"沒有數據用於指標: {indicator}")
 
