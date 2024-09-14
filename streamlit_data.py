@@ -25,18 +25,19 @@ def scrape_data(urls):
             soup = BeautifulSoup(response.content, 'html.parser')
             title = soup.title.string if soup.title else "No title"
             rows = soup.find_all('tr')
+            row_counter = 0
             
             for row in rows:
+                if row_counter >= 6:
+                    break
                 cols = row.find_all('td')
                 if len(cols) == 6:
-                    date_str = safe_strip(cols[0].text)
-                    if f"({current_month})" in date_str:
-                        cols_text = [safe_strip(col.text) for col in cols]
-                        # 如果預測列為空，將其設置為 None
-                        if cols_text[3] == '':
-                            cols_text[3] = None
-                        data.append([title] + cols_text)
-                        break  # Only get the first (most recent) entry for the current month
+                    cols_text = [safe_strip(col.text) for col in cols]
+                    # 如果預測列為空，將其設置為 None
+                    if cols_text[3] == '':
+                        cols_text[3] = None
+                    data.append([title] + cols_text)
+                    row_counter += 1
         except Exception as e:
             logging.error(f"爬取 {url} 時出錯: {str(e)}")
     
@@ -45,6 +46,7 @@ def scrape_data(urls):
 def process_data(df, country):
     indicators = get_indicators(country)
     lower_is_better = get_lower_is_better(country)
+    current_month = datetime.now().strftime("%b")
 
     def parse_date(date_str):
         patterns = [
@@ -92,23 +94,33 @@ def process_data(df, country):
             
             vs_forecast = compare_values(actual, forecast, indicator)
             
-            indicators[indicator] = {
+            indicators[indicator].append({
                 "Date": date,
                 "Vs Forecast": vs_forecast,
                 "Forecast": forecast if forecast and forecast != '-' else None,
-                "Actual": actual if actual else None
-            }
+                "Actual": actual if actual else None,
+                "Is Current": f"({current_month})" in row['Date']
+            })
 
     processed_data = []
     for indicator, data in indicators.items():
         if data:
+            sorted_data = sorted(data, key=lambda x: x['Date'], reverse=True)
+            current_data = next((d for d in sorted_data if d['Is Current']), sorted_data[0])
             row = [
                 indicator,
-                data['Date'].strftime("%b %d, %Y (%b)"),
-                data['Vs Forecast'],
-                data['Forecast'] if data['Forecast'] else 'None',
-                data['Actual'] if data['Actual'] else 'None'
+                current_data['Date'].strftime("%b %d, %Y (%b)"),
+                current_data['Vs Forecast'],
+                current_data['Forecast'] if current_data['Forecast'] else 'None',
+                current_data['Actual'] if current_data['Actual'] else 'None'
             ]
+            actuals = []
+            for i in range(1, 5):  # Get 4 historical data points
+                if i < len(sorted_data):
+                    actuals.append(sorted_data[i].get('Actual') or 'None')
+                else:
+                    actuals.append('None')
+            row.extend(actuals)
             processed_data.append(row)
         else:
             logging.warning(f"沒有數據用於指標: {indicator}")
@@ -311,7 +323,7 @@ def main():
                     
                     if processed_data:
                         st.success("數據分析成功！")
-                        st.session_state.processed_df = pd.DataFrame(processed_data, columns=["指標", "數據更新", "與預測比較", "預測", "本月"])
+                        st.session_state.processed_df = pd.DataFrame(processed_data, columns=["指標", "數據更新", "與預測比較", "預測", "本月", "1月前", "2月前", "3月前", "4月前"])
                         st.session_state.indicators = indicators
                     else:
                         st.warning("沒有處理任何數據。請檢查數據結構。")
