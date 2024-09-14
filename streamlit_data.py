@@ -74,9 +74,8 @@ def process_data(df, country):
         else:
             return "較好" if actual_value > forecast_value else "較差" if actual_value < forecast_value else "持平"
 
-    # Find the current month (most recent month that's not in the future)
-    current_date = datetime.now()
-    current_month = current_date.strftime("%b")
+    # Find the current month (most recent month in the data)
+    current_month = max(parse_date(row['Date'])[1] for _, row in df.iterrows() if parse_date(row['Date'])[1])
 
     for _, row in df.iterrows():
         indicator = row['Title'].split(' - ')[0]
@@ -104,8 +103,8 @@ def process_data(df, country):
         if data:
             sorted_data = sorted(data, key=lambda x: x['Date'], reverse=True)
             
-            # Find the most recent data point that's not in the future
-            current_data = next((d for d in sorted_data if d['Date'].strftime("%b") <= current_month), None)
+            # Find the data point for the current month
+            current_data = next((d for d in sorted_data if d['Month'] == current_month), None)
             
             if current_data:
                 row = [
@@ -116,10 +115,10 @@ def process_data(df, country):
                     current_data['Actual'] if current_data['Actual'] else 'None'
                 ]
                 
-                # Get historical data
-                historical_data = [d for d in sorted_data if d['Date'] < current_data['Date']]
+                # Get historical data, including any future data points
+                historical_data = [d for d in sorted_data if d['Date'] != current_data['Date']]
                 actuals = []
-                for i in range(4):  # Get 4 historical data points
+                for i in range(4):  # Get 4 historical/future data points
                     if i < len(historical_data):
                         actuals.append(historical_data[i].get('Actual') or 'None')
                     else:
@@ -128,11 +127,12 @@ def process_data(df, country):
                 
                 processed_data.append(row)
             else:
-                logging.warning(f"沒有找到有效的當前數據用於指標: {indicator}")
+                logging.warning(f"沒有找到當前月份的數據用於指標: {indicator}")
         else:
             logging.warning(f"沒有數據用於指標: {indicator}")
 
     return processed_data, indicators
+    
 def create_chart(data, indicator):
     dates = [d['Date'] for d in data]
     actuals = [float(safe_strip(d['Actual']).rstrip('K%M')) if d['Actual'] and d['Actual'] not in ['', 'None'] else None for d in data]
