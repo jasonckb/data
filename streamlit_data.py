@@ -301,7 +301,6 @@ def get_lower_is_better(country):
 def main():
     st.title("美國與中國經濟數據分析(Jason Chan)")
 
-    # 添加下拉選單到側邊欄
     country = st.sidebar.selectbox("選擇國家", ["US", "China"])
 
     if 'indicators' not in st.session_state:
@@ -338,12 +337,40 @@ def main():
                 st.error(f"處理過程中發生錯誤: {str(e)}")
                 logging.exception("處理過程中發生錯誤")
 
+    if st.session_state.raw_df is not None:
+        with st.expander("點擊查看原始數據"):
+            st.subheader("原始數據")
+            st.dataframe(st.session_state.raw_df)
+        
+        csv_raw = st.session_state.raw_df.to_csv(index=False).encode('utf-8')
+        st.download_button(
+            label="下載原始數據為CSV",
+            data=csv_raw,
+            file_name=f"raw_{country.lower()}_economic_data.csv",
+            mime="text/csv",
+        )
+
     if st.session_state.processed_df is not None:
         st.subheader("數據總結")
         
         def color_rows(row):
-            # ... (color_rows function remains the same)
-
+            if country == "US":
+                if row.name < 5:  # 就業數據
+                    return ['background-color: #FFFFE0; text-align: center; vertical-align: middle'] * len(row)
+                elif 5 <= row.name < 13:  # 通貨膨脹數據
+                    return ['background-color: #E6E6FA; text-align: center; vertical-align: middle'] * len(row)
+                else:  # 其他經濟指標
+                    return ['background-color: #E6F3FF; text-align: center; vertical-align: middle'] * len(row)
+            elif country == "China":
+                if row.name < 6:  # 前6個指標
+                    return ['background-color: #FFFFE0; text-align: center; vertical-align: middle'] * len(row)
+                elif 6 <= row.name < 9:  # 7-9個指標
+                    return ['background-color: #E6E6FA; text-align: center; vertical-align: middle'] * len(row)
+                elif 9 <= row.name < 14:  # 10-14個指標
+                    return ['background-color: #E6F3FF; text-align: center; vertical-align: middle'] * len(row)
+                else:  # 15-18個指標
+                    return ['background-color: #FFFFFF; text-align: center; vertical-align: middle'] * len(row)
+        
         def color_text(val):
             if val == '較差':
                 return 'color: red'
