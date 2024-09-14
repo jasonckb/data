@@ -46,6 +46,10 @@ def process_data(df, country):
     indicators = get_indicators(country)
     lower_is_better = get_lower_is_better(country)
 
+    # Dynamically determine the current month
+    current_date = datetime.now()
+    current_month = current_date.strftime("%b")
+
     def parse_date(date_str):
         pattern = r'(\w+ \d{2}, \d{4}) \((\w+)\)'
         match = re.match(pattern, date_str)
@@ -74,20 +78,16 @@ def process_data(df, country):
         else:
             return "較好" if actual_value > forecast_value else "較差" if actual_value < forecast_value else "持平"
 
-    # Find the most recent month in the data
-    current_month = None
-    for _, row in df.iterrows():
-        _, month = parse_date(row['Date'])
-        if month:
-            current_month = month
-            break
-
     for _, row in df.iterrows():
         indicator = row['Title'].split(' - ')[0]
         if indicator in indicators:
             date, month = parse_date(row['Date'])
             if date is None:
                 logging.warning(f"無法解析日期: {row['Date']} 對於指標: {indicator}")
+                continue
+
+            # Check if the data is from the current month or earlier
+            if date > current_date:
                 continue
 
             forecast = safe_strip(row.get('Forecast', ''))
@@ -108,11 +108,15 @@ def process_data(df, country):
     for indicator, data in indicators.items():
         if data:
             sorted_data = sorted(data, key=lambda x: x['Date'], reverse=True)
-            current_data = next((d for d in sorted_data if d['Is Current']), sorted_data[0])
+            current_data = next((d for d in sorted_data if d['Is Current']), None)
+            if current_data is None:
+                current_data = sorted_data[0]  # Use the most recent data if no current month data
+                current_data['Is Current'] = False  # Mark it as not current
+            
             row = [
                 indicator,
                 current_data['Date'].strftime("%b %d, %Y (%b)"),
-                current_data['Vs Forecast'],
+                current_data['Vs Forecast'] if current_data['Is Current'] else '',
                 current_data['Forecast'] if current_data['Forecast'] else 'None',
                 current_data['Actual'] if current_data['Actual'] else 'None'
             ]
@@ -289,7 +293,10 @@ def get_lower_is_better(country):
         ]
     elif country == "China":
         return [
-            "Chinese Unemployment Rate",            
+            "Chinese Unemployment Rate",
+            "China Consumer Price Index (CPI) MoM",
+            "China Consumer Price Index (CPI) YoY",
+            "China Producer Price Index (PPI) YoY",
             "China Loan Prime Rate 5Y",
             "People's Bank of China Loan Prime Rate"
         ]
@@ -299,6 +306,10 @@ def main():
 
     # 添加下拉選單到側邊欄
     country = st.sidebar.selectbox("選擇國家", ["US", "China"])
+
+    # Display the current month being used for analysis
+    current_month = datetime.now().strftime("%B %Y")
+    st.sidebar.write(f"當前分析月份: {current_month}")
 
     if 'indicators' not in st.session_state:
         st.session_state.indicators = {}
@@ -420,5 +431,6 @@ def main():
 
     st.warning("注意：此爬蟲和分析器僅用於教育目的丶不保證資料準確性。請尊重網站的服務條款和robots.txt文件。數據來源: investing.com")
     st.warning("注意：Lower Inflation data is good in US as Inflation is the problem; Higher in China is good as Deflation is the problem")
+
 if __name__ == "__main__":
     main()
