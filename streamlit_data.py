@@ -113,30 +113,29 @@ def process_data(df, country):
             # Sort by date, most recent first
             sorted_data = sorted(data, key=lambda x: x['Date'], reverse=True)
             
-            # Determine if we need to shift the data
             latest_month = sorted_data[0]['MonthInParentheses']
-            shift = 1 if latest_month != current_month else 0
+            is_future_month = latest_month != current_month
             
             row = [indicator]
             
-            # Add date (always the most recent)
-            row.append(sorted_data[0]['Date'].strftime("%b %d, %Y") + (f" ({sorted_data[0]['MonthInParentheses']})" if sorted_data[0]['MonthInParentheses'] else ""))
+            if is_future_month and len(sorted_data) > 1:
+                # For future months, use previous month's data but keep future date
+                row.append(sorted_data[0]['Date'].strftime("%b %d, %Y") + f" ({sorted_data[0]['MonthInParentheses']})")
+                row.extend([
+                    sorted_data[1]['Vs Forecast'],
+                    sorted_data[1]['Forecast'] if sorted_data[1]['Forecast'] else 'None'
+                ])
+                actuals = [sorted_data[i]['Actual'] or 'None' for i in range(1, min(6, len(sorted_data)))]
+            else:
+                # For current or past months, use original logic
+                row.append(sorted_data[0]['Date'].strftime("%b %d, %Y") + (f" ({sorted_data[0]['MonthInParentheses']})" if sorted_data[0]['MonthInParentheses'] else ""))
+                row.extend([
+                    sorted_data[0]['Vs Forecast'],
+                    sorted_data[0]['Forecast'] if sorted_data[0]['Forecast'] else 'None'
+                ])
+                actuals = [sorted_data[i]['Actual'] or 'None' for i in range(min(5, len(sorted_data)))]
             
-            # Add comparison and forecast
-            index_for_current = shift if shift < len(sorted_data) else 0
-            row.extend([
-                sorted_data[index_for_current]['Vs Forecast'],
-                sorted_data[index_for_current]['Forecast'] if sorted_data[index_for_current]['Forecast'] else 'None'
-            ])
-            
-            # Add actual values
-            for i in range(5):
-                index = i + shift
-                if index < len(sorted_data):
-                    row.append(sorted_data[index]['Actual'] or 'None')
-                else:
-                    row.append('None')
-            
+            row.extend(actuals + ['None'] * (5 - len(actuals)))
             processed_data.append(row)
         else:
             logging.warning(f"沒有數據用於指標: {indicator}")
