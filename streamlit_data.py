@@ -46,8 +46,7 @@ def scrape_data(urls):
 def process_data(df, country):
     indicators = get_indicators(country)
     lower_is_better = get_lower_is_better(country)
-    current_date = datetime.now()
-    current_month = current_date.strftime("%b")
+    current_month = datetime.now().strftime("%b")
 
     def parse_date(date_str):
         patterns = [
@@ -115,22 +114,22 @@ def process_data(df, country):
             sorted_data = sorted(data, key=lambda x: x['Date'], reverse=True)
             
             # Determine if we need to shift the data
-            latest_date = sorted_data[0]['Date']
-            shift = 1 if latest_date > current_date or (latest_date.month == current_date.month and latest_date.day > current_date.day) else 0
+            latest_month = sorted_data[0]['MonthInParentheses']
+            shift = 1 if latest_month != current_month else 0
             
             row = [indicator]
             
             # Add date (always the most recent)
             row.append(sorted_data[0]['Date'].strftime("%b %d, %Y") + (f" ({sorted_data[0]['MonthInParentheses']})" if sorted_data[0]['MonthInParentheses'] else ""))
             
-            # Add comparison and forecast (shifted if necessary)
+            # Add comparison and forecast
             index_for_current = shift if shift < len(sorted_data) else 0
             row.extend([
                 sorted_data[index_for_current]['Vs Forecast'],
                 sorted_data[index_for_current]['Forecast'] if sorted_data[index_for_current]['Forecast'] else 'None'
             ])
             
-            # Add actual values (shifted if necessary)
+            # Add actual values
             for i in range(5):
                 index = i + shift
                 if index < len(sorted_data):
