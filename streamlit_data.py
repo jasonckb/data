@@ -145,11 +145,15 @@ def scrape_data(urls):
     data = []
     current_date = datetime.now()
     current_month = current_date.replace(day=1)
-    next_month = (current_month + timedelta(days=32)).replace(day=1)
 
     def is_future_date(date_str):
-        date, _ = parse_date(date_str)
-        return date and date >= next_month
+        date, month_in_parentheses = parse_date(date_str)
+        if date:
+            # If the date is in the current month, check the month in parentheses
+            if date.replace(day=1) == current_month and month_in_parentheses:
+                return month_in_parentheses.lower() != current_date.strftime("%b").lower()
+            return date > current_date
+        return False
 
     for url in urls:
         try:
@@ -165,7 +169,7 @@ def scrape_data(urls):
                 cols = row.find_all('td')
                 if len(cols) == 6:
                     date_str = safe_strip(cols[0].text)
-                    if not is_future_date(date_str):  # Only include data not in the future
+                    if not is_future_date(date_str):
                         cols_text = [safe_strip(col.text) for col in cols]
                         if cols_text[3] == '':
                             cols_text[3] = None
@@ -211,17 +215,6 @@ def compare_values(actual, forecast, indicator, lower_is_better):
     else:
         return "較好" if actual_value > forecast_value else "較差" if actual_value < forecast_value else "持平"
 
-def filter_future_data(df):
-    current_date = datetime.now()
-    next_month = current_date.replace(day=1) + timedelta(days=32)
-    next_month = next_month.replace(day=1)
-    
-    def is_within_next_month(date_str):
-        date, _ = parse_date(date_str)
-        return date < next_month if date else False
-
-    return df[df['Date'].apply(is_within_next_month)]
-
 def process_data(df, country):
     indicators = get_indicators(country)
     lower_is_better = get_lower_is_better(country)
@@ -244,7 +237,7 @@ def process_data(df, country):
                 "MonthInParentheses": month_in_parentheses,
                 "Vs Forecast": vs_forecast,
                 "Forecast": forecast if forecast and forecast != '-' else None,
-                "Actual": actual if actual else None
+                "Actual": actual if actual and actual != '-' else None
             })
 
     processed_data = []
