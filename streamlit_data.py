@@ -18,7 +18,6 @@ def safe_strip(value):
 
 def scrape_data(urls):
     data = []
-    current_month = datetime.now().strftime("%b")
     for url in urls:
         try:
             response = requests.get(url)
@@ -46,19 +45,13 @@ def scrape_data(urls):
 def process_data(df, country):
     indicators = get_indicators(country)
     lower_is_better = get_lower_is_better(country)
-    current_month = datetime.now().strftime("%b")
 
     def parse_date(date_str):
-        patterns = [
-            r'(\w+ \d{2}, \d{4}) \((\w+)\)',
-            r'(\w+ \d{2}, \d{4})',
-            r'(\w+ \d{2}, \d{4}) \(Q\d\)'
-        ]
-        for pattern in patterns:
-            match = re.match(pattern, date_str)
-            if match:
-                return datetime.strptime(match.group(1), '%b %d, %Y')
-        return None
+        pattern = r'(\w+ \d{2}, \d{4}) \((\w+)\)'
+        match = re.match(pattern, date_str)
+        if match:
+            return datetime.strptime(match.group(1), '%b %d, %Y'), match.group(2)
+        return None, None
 
     def compare_values(actual, forecast, indicator):
         def parse_value(value):
@@ -81,10 +74,18 @@ def process_data(df, country):
         else:
             return "較好" if actual_value > forecast_value else "較差" if actual_value < forecast_value else "持平"
 
+    # Find the most recent month in the data
+    current_month = None
+    for _, row in df.iterrows():
+        _, month = parse_date(row['Date'])
+        if month:
+            current_month = month
+            break
+
     for _, row in df.iterrows():
         indicator = row['Title'].split(' - ')[0]
         if indicator in indicators:
-            date = parse_date(row['Date'])
+            date, month = parse_date(row['Date'])
             if date is None:
                 logging.warning(f"無法解析日期: {row['Date']} 對於指標: {indicator}")
                 continue
@@ -96,17 +97,21 @@ def process_data(df, country):
             
             indicators[indicator].append({
                 "Date": date,
+                "Month": month,
                 "Vs Forecast": vs_forecast,
                 "Forecast": forecast if forecast and forecast != '-' else None,
                 "Actual": actual if actual else None,
-                "Is Current": f"({current_month})" in row['Date']
+                "Is Current": month == current_month
             })
 
     processed_data = []
     for indicator, data in indicators.items():
         if data:
             sorted_data = sorted(data, key=lambda x: x['Date'], reverse=True)
-            current_data = next((d for d in sorted_data if d['Is Current']), sorted_data[0])
+            current_data = next((d for d in sorted_data if d['Is Current']), None)
+            if current_data is None:
+                continue  # Skip indicators without current month data
+
             row = [
                 indicator,
                 current_data['Date'].strftime("%b %d, %Y (%b)"),
