@@ -337,7 +337,7 @@ def main():
         })
         
         # 創建兩列佈局
-                col1, col2 = st.columns([3, 2])
+        col1, col2 = st.columns([3, 2])
         
         with col1:
             # 顯示數據表格
