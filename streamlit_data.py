@@ -145,14 +145,15 @@ def scrape_data(urls):
     data = []
     current_date = datetime.now()
     current_month = current_date.replace(day=1)
+    next_month = (current_month + timedelta(days=32)).replace(day=1)
 
-    def is_future_date(date_str):
+    def is_future_month(date_str):
         date, month_in_parentheses = parse_date(date_str)
         if date:
-            # If the date is in the current month, check the month in parentheses
+            if date.replace(day=1) > current_month:
+                return True
             if date.replace(day=1) == current_month and month_in_parentheses:
                 return month_in_parentheses.lower() != current_date.strftime("%b").lower()
-            return date > current_date
         return False
 
     for url in urls:
@@ -169,7 +170,7 @@ def scrape_data(urls):
                 cols = row.find_all('td')
                 if len(cols) == 6:
                     date_str = safe_strip(cols[0].text)
-                    if not is_future_date(date_str):
+                    if not is_future_month(date_str):
                         cols_text = [safe_strip(col.text) for col in cols]
                         if cols_text[3] == '':
                             cols_text[3] = None
@@ -195,19 +196,13 @@ def parse_date(date_str):
     return None, None
 
 def compare_values(actual, forecast, indicator, lower_is_better):
-    def parse_value(value):
-        if isinstance(value, str):
-            value = value.strip().rstrip('%B')
-            try:
-                return float(value)
-            except ValueError:
-                return None
-        return value
-
-    actual_value = parse_value(actual)
-    forecast_value = parse_value(forecast)
-
-    if actual_value is None or forecast_value is None:
+    if actual is None or forecast is None or actual == '' or forecast == '':
+        return ''
+    
+    try:
+        actual_value = float(actual.replace(',', '').rstrip('%K'))
+        forecast_value = float(forecast.replace(',', '').rstrip('%K'))
+    except ValueError:
         return ''
 
     if indicator in lower_is_better:
@@ -248,7 +243,7 @@ def process_data(df, country):
             row = [
                 indicator,
                 latest['Date'].strftime("%b %d, %Y") + f" ({latest['MonthInParentheses']})",
-                latest['Vs Forecast'],
+                latest['Vs Forecast'] if latest['Actual'] is not None else '',
                 latest['Forecast'] if latest['Forecast'] else 'None'
             ]
             actuals = []
