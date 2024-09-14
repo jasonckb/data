@@ -119,18 +119,11 @@ def process_data(df, country):
             row = [indicator]
             
             # Add date and comparison
-            if shift:
-                row.extend([
-                    sorted_data[1]['Date'].strftime("%b %d, %Y") + (f" ({sorted_data[1]['MonthInParentheses']})" if sorted_data[1]['MonthInParentheses'] else ""),
-                    sorted_data[1]['Vs Forecast'],
-                    sorted_data[1]['Forecast'] if sorted_data[1]['Forecast'] else 'None'
-                ])
-            else:
-                row.extend([
-                    sorted_data[0]['Date'].strftime("%b %d, %Y") + (f" ({sorted_data[0]['MonthInParentheses']})" if sorted_data[0]['MonthInParentheses'] else ""),
-                    sorted_data[0]['Vs Forecast'],
-                    sorted_data[0]['Forecast'] if sorted_data[0]['Forecast'] else 'None'
-                ])
+            row.extend([
+                sorted_data[0]['Date'].strftime("%b %d, %Y") + (f" ({sorted_data[0]['MonthInParentheses']})" if sorted_data[0]['MonthInParentheses'] else ""),
+                sorted_data[0]['Vs Forecast'],
+                sorted_data[0]['Forecast'] if sorted_data[0]['Forecast'] else 'None'
+            ])
             
             # Add actual values
             for i in range(5):
