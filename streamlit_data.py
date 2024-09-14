@@ -57,8 +57,10 @@ def process_data(df, country):
         for pattern in patterns:
             match = re.match(pattern, date_str)
             if match:
-                return datetime.strptime(match.group(1), '%b %d, %Y')
-        return None
+                date = datetime.strptime(match.group(1), '%b %d, %Y')
+                month_in_parentheses = match.group(2) if len(match.groups()) > 1 else None
+                return date, month_in_parentheses
+        return None, None
         
     def compare_values(actual, forecast, indicator):
         def parse_value(value):
@@ -87,7 +89,7 @@ def process_data(df, country):
     for _, row in df.iterrows():
         indicator = row['Title'].split(' - ')[0]
         if indicator in indicators:
-            date = parse_date(row['Date'])
+            date, month_in_parentheses = parse_date(row['Date'])
             if date is None:
                 logging.warning(f"無法解析日期: {row['Date']} 對於指標: {indicator}")
                 continue
@@ -99,6 +101,7 @@ def process_data(df, country):
             
             indicators[indicator].append({
                 "Date": date,
+                "MonthInParentheses": month_in_parentheses,
                 "Vs Forecast": vs_forecast,
                 "Forecast": forecast if forecast and forecast != '-' else None,
                 "Actual": actual if actual else None
@@ -109,25 +112,42 @@ def process_data(df, country):
         if data:
             sorted_data = sorted(data, key=lambda x: x['Date'], reverse=True)
             latest = sorted_data[0]
-            row = [
-                indicator,
-                latest['Date'].strftime("%b %d, %Y (%b)"),
-                latest['Vs Forecast'],
-                latest['Forecast'] if latest['Forecast'] else 'None'
-            ]
-            actuals = []
-            for i in range(5):
-                if i < len(sorted_data):
-                    actuals.append(sorted_data[i].get('Actual') or 'None')
-                else:
-                    actuals.append('None')
+            
+            if latest['MonthInParentheses'] != current_month:
+                # Future month data
+                row = [
+                    indicator,
+                    latest['Date'].strftime("%b %d, %Y") + f" ({latest['MonthInParentheses']})",
+                    'None',
+                    'None'
+                ]
+                actuals = ['None']
+                for i in range(1, 5):
+                    if i < len(sorted_data):
+                        actuals.append(sorted_data[i].get('Actual') or 'None')
+                    else:
+                        actuals.append('None')
+            else:
+                # Current month or past data
+                row = [
+                    indicator,
+                    latest['Date'].strftime("%b %d, %Y") + f" ({latest['MonthInParentheses']})",
+                    latest['Vs Forecast'],
+                    latest['Forecast'] if latest['Forecast'] else 'None'
+                ]
+                actuals = []
+                for i in range(5):
+                    if i < len(sorted_data):
+                        actuals.append(sorted_data[i].get('Actual') or 'None')
+                    else:
+                        actuals.append('None')
+            
             row.extend(actuals)
             processed_data.append(row)
         else:
             logging.warning(f"沒有數據用於指標: {indicator}")
 
     return processed_data, indicators
-
 def handle_future_month_data(processed_data):
     current_month = datetime.now().strftime("%b")
     
