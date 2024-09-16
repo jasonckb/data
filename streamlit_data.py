@@ -199,9 +199,22 @@ def compare_values(actual, forecast, indicator, lower_is_better):
     if actual is None or forecast is None or actual == '' or forecast == '':
         return ''
     
+    def parse_value(value):
+        if isinstance(value, str):
+            value = value.strip().rstrip('%')
+            if value.endswith('B'):
+                return float(value[:-1]) * 1e9
+            elif value.endswith('M'):
+                return float(value[:-1]) * 1e6
+            elif value.endswith('K'):
+                return float(value[:-1]) * 1e3
+            else:
+                return float(value)
+        return value
+
     try:
-        actual_value = float(actual.replace(',', '').rstrip('%K'))
-        forecast_value = float(forecast.replace(',', '').rstrip('%K'))
+        actual_value = parse_value(actual)
+        forecast_value = parse_value(forecast)
     except ValueError:
         return ''
 
