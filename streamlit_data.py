@@ -141,20 +141,17 @@ def safe_strip(value):
     """安全地對值進行 strip 操作"""
     return value.strip() if isinstance(value, str) else value
 
+def is_future_month(date_str):
+    actual_date, reported_month = parse_date(date_str)
+    if actual_date:
+        current_date = datetime.now()
+        # Use the actual date for filtering, not the reported month
+        return actual_date > current_date
+    return False
+
 def scrape_data(urls):
     data = []
     current_date = datetime.now()
-    current_month = current_date.replace(day=1)
-    next_month = (current_month + timedelta(days=32)).replace(day=1)
-
-    def is_future_month(date_str):
-        date, month_in_parentheses = parse_date(date_str)
-        if date:
-            if date.replace(day=1) > next_month:
-                return True
-            if date.replace(day=1) == next_month and month_in_parentheses:
-                return month_in_parentheses.lower() != next_month.strftime("%b").lower()
-        return False
 
     for url in urls:
         try:
@@ -170,7 +167,8 @@ def scrape_data(urls):
                 cols = row.find_all('td')
                 if len(cols) == 6:
                     date_str = safe_strip(cols[0].text)
-                    if not is_future_month(date_str):
+                    actual_date, reported_month = parse_date(date_str)
+                    if actual_date and actual_date <= current_date:
                         cols_text = [safe_strip(col.text) for col in cols]
                         if cols_text[3] == '':
                             cols_text[3] = None
@@ -180,7 +178,6 @@ def scrape_data(urls):
             logging.error(f"爬取 {url} 時出錯: {str(e)}")
     
     return pd.DataFrame(data, columns=['Title', 'Date', 'Time', 'Actual', 'Forecast', 'Previous', 'Importance'])
-
 def parse_date(date_str):
     patterns = [
         r'(\w+ \d{2}, \d{4}) \((\w+)\)',
@@ -190,9 +187,9 @@ def parse_date(date_str):
     for pattern in patterns:
         match = re.match(pattern, date_str)
         if match:
-            date = datetime.strptime(match.group(1), '%b %d, %Y')
-            month_in_parentheses = match.group(2) if len(match.groups()) > 1 else None
-            return date, month_in_parentheses
+            actual_date = datetime.strptime(match.group(1), '%b %d, %Y')
+            reported_month = match.group(2) if len(match.groups()) > 1 else None
+            return actual_date, reported_month
     return None, None
 
 def compare_values(actual, forecast, indicator, lower_is_better):
