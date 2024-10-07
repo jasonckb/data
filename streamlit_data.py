@@ -150,10 +150,10 @@ def scrape_data(urls):
     def is_future_month(date_str):
         date, month_in_parentheses = parse_date(date_str)
         if date:
-            if date.replace(day=1) > current_month:
+            if date.replace(day=1) > next_month:
                 return True
-            if date.replace(day=1) == current_month and month_in_parentheses:
-                return month_in_parentheses.lower() != current_date.strftime("%b").lower()
+            if date.replace(day=1) == next_month and month_in_parentheses:
+                return month_in_parentheses.lower() != next_month.strftime("%b").lower()
         return False
 
     for url in urls:
