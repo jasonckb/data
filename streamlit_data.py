@@ -10,7 +10,7 @@ from plotly.subplots import make_subplots
 
 logging.basicConfig(level=logging.INFO)
 
-st.set_page_config(page_title="美國與中國經濟數據分析 (Jason Chan)", layout="wide")
+st.set_page_config(page_title="US & China Economic Data Summary (Jason Chan)", layout="wide")
 
 def get_urls(country):
     if country == "US":
@@ -216,9 +216,9 @@ def compare_values(actual, forecast, indicator, lower_is_better):
         return ''
 
     if indicator in lower_is_better:
-        return "較好" if actual_value < forecast_value else "較差" if actual_value > forecast_value else "持平"
+        return "Better Off" if actual_value < forecast_value else "Worse Off" if actual_value > forecast_value else "Par"
     else:
-        return "較好" if actual_value > forecast_value else "較差" if actual_value < forecast_value else "持平"
+        return "Better Off" if actual_value > forecast_value else "Worse Off" if actual_value < forecast_value else "Par"
 
 def process_data(df, country):
     indicators = get_indicators(country)
@@ -278,7 +278,7 @@ def create_chart(data, indicator):
     fig = make_subplots(specs=[[{"secondary_y": True}]])
 
     fig.add_trace(
-        go.Scatter(x=dates, y=actuals, name="實際值", mode="lines+markers"),
+        go.Scatter(x=dates, y=actuals, name="Actual", mode="lines+markers"),
         secondary_y=False,
     )
 
@@ -292,7 +292,7 @@ def create_chart(data, indicator):
         forecast_values = [latest_forecast] * len(forecast_dates)
         
         fig.add_trace(
-            go.Scatter(x=forecast_dates, y=forecast_values, name="預測值(本/前月)", 
+            go.Scatter(x=forecast_dates, y=forecast_values, name="Forecast(This/ Previous Month)", 
                        mode="lines", line=dict(dash="dash", color="gray")),
             secondary_y=False,
         )
@@ -302,9 +302,9 @@ def create_chart(data, indicator):
 
     fig.update_layout(
         title=indicator,
-        xaxis_title="日期",
-        yaxis_title="值",
-        legend_title="圖例",
+        xaxis_title="Date",
+        yaxis_title="Value",
+        legend_title="Legend",
         height=400,
         width=600
     )
@@ -312,10 +312,10 @@ def create_chart(data, indicator):
     return fig
 
 def main():
-    st.title("美國與中國經濟數據分析(Jason Chan)")
+    st.title("US & China Economic Data Summary (Jason Chan)")
 
     # 添加下拉選單到側邊欄
-    country = st.sidebar.selectbox("選擇國家", ["US", "China"])
+    country = st.sidebar.selectbox("Country", ["US", "China"])
 
     if 'indicators' not in st.session_state:
         st.session_state.indicators = {}
@@ -327,13 +327,13 @@ def main():
         st.session_state.raw_df = None
 
     if st.button("爬取並分析數據"):
-        with st.spinner("正在爬取和分析數據... 這可能需要幾分鐘。"):
+        with st.spinner("Getting data......。"):
             try:
                 urls = get_urls(country)
                 df = scrape_data(urls)
                 
                 if not df.empty:
-                    st.success("數據爬取成功！")
+                    st.success("Scrapping Successfully！")
                     
                     # 保存原始數據
                     st.session_state.raw_df = df
@@ -341,8 +341,8 @@ def main():
                     processed_data, indicators = process_data(df, country)
                     
                     if processed_data:
-                        st.success("數據分析成功！")
-                        st.session_state.processed_df = pd.DataFrame(processed_data, columns=["指標", "數據更新", "與預測比較", "預測", "本月", "1月前", "2月前", "3月前", "4月前"])
+                        st.success("Data Analysis Complete！")
+                        st.session_state.processed_df = pd.DataFrame(processed_data, columns=["Indicator", "Update", "Vs Forecast", "Forecast", "This Month", "1 Month Ago", "2 Month Ago", "3 Month Ago", "4 Month Ago"])
                         st.session_state.indicators = indicators
                     else:
                         st.warning("沒有處理任何數據。請檢查數據結構。")
@@ -353,14 +353,14 @@ def main():
                 logging.exception("處理過程中發生錯誤")
 
     if st.session_state.raw_df is not None:
-        with st.expander("點擊查看原始數據"):
-            st.subheader("原始數據")
+        with st.expander("Click for Raw Data"):
+            st.subheader("Raw Data")
             st.dataframe(st.session_state.raw_df)
         
         # 添加下載原始數據的按鈕
         csv_raw = st.session_state.raw_df.to_csv(index=False).encode('utf-8')
         st.download_button(
-            label="下載原始數據為CSV",
+            label="Download Data CSV",
             data=csv_raw,
             file_name=f"raw_{country.lower()}_economic_data.csv",
             mime="text/csv",
@@ -388,14 +388,14 @@ def main():
                     return ['background-color: #FFFFFF; text-align: center; vertical-align: middle'] * len(row)
         
         def color_text(val):
-            if val == '較差':
+            if val == 'Worse Off':
                 return 'color: red'
-            elif val == '較好':
+            elif val == 'Better Off':
                 return 'color: green'
             return ''
 
         styled_df = st.session_state.processed_df.style.apply(color_rows, axis=1)
-        styled_df = styled_df.applymap(color_text, subset=['與預測比較'])
+        styled_df = styled_df.applymap(color_text, subset=['Vs Forecast'])
         styled_df = styled_df.set_properties(**{
             'text-align': 'center',
             'vertical-align': 'middle',
@@ -414,18 +414,18 @@ def main():
             chart_placeholder = st.empty()
         
         # 為每個指標創建一個按鈕在側邊欄
-        st.sidebar.header("選擇指標")
+        st.sidebar.header("Select Indicator")
         for index, row in st.session_state.processed_df.iterrows():
-            if st.sidebar.button(row['指標']):
+            if st.sidebar.button(row['Indicator']):
                 # 獲取該指標的所有數據
-                indicator_data = st.session_state.indicators.get(row['指標'], [])
+                indicator_data = st.session_state.indicators.get(row['Indicator'], [])
                 indicator_data = [d for d in indicator_data if d.get('Actual')]
                 if indicator_data:
                     # 創建並顯示圖表
-                    fig = create_chart(indicator_data, row['指標'])
+                    fig = create_chart(indicator_data, row['Indicator'])
                     chart_placeholder.plotly_chart(fig)
                 else:
-                    chart_placeholder.warning(f"沒有找到 {row['指標']} 的有效數據")
+                    chart_placeholder.warning(f"沒有找到 {row['Indicator']} 的有效數據")
         
         csv = st.session_state.processed_df.to_csv(index=False).encode('utf-8')
         st.download_button(
