@@ -10,7 +10,7 @@ from plotly.subplots import make_subplots
 
 logging.basicConfig(level=logging.INFO)
 
-st.set_page_config(page_title="US & China Economic Data Summary (Jason Chan)", layout="wide")
+st.set_page_config(page_title="US and China Economic Data Analysis (Jason Chan)", layout="wide")
 
 def get_urls(country):
     if country == "US":
@@ -138,7 +138,7 @@ def get_lower_is_better(country):
 
 
 def safe_strip(value):
-    """安全地對值進行 strip 操作"""
+    """Safely strip the value"""
     return value.strip() if isinstance(value, str) else value
 
 def is_future_month(date_str):
@@ -175,9 +175,10 @@ def scrape_data(urls):
                         data.append([title] + cols_text)
                         row_counter += 1
         except Exception as e:
-            logging.error(f"爬取 {url} 時出錯: {str(e)}")
+            logging.error(f"Error scraping {url}: {str(e)}")
     
     return pd.DataFrame(data, columns=['Title', 'Date', 'Time', 'Actual', 'Forecast', 'Previous', 'Importance'])
+
 def parse_date(date_str):
     patterns = [
         r'(\w+ \d{2}, \d{4}) \((\w+)\)',
@@ -216,9 +217,9 @@ def compare_values(actual, forecast, indicator, lower_is_better):
         return ''
 
     if indicator in lower_is_better:
-        return "Better Off" if actual_value < forecast_value else "Worse Off" if actual_value > forecast_value else "Par"
+        return "Better" if actual_value < forecast_value else "Worse" if actual_value > forecast_value else "Same"
     else:
-        return "Better Off" if actual_value > forecast_value else "Worse Off" if actual_value < forecast_value else "Par"
+        return "Better" if actual_value > forecast_value else "Worse" if actual_value < forecast_value else "Same"
 
 def process_data(df, country):
     indicators = get_indicators(country)
@@ -229,7 +230,7 @@ def process_data(df, country):
         if indicator in indicators:
             date, month_in_parentheses = parse_date(row['Date'])
             if date is None:
-                logging.warning(f"無法解析日期: {row['Date']} 對於指標: {indicator}")
+                logging.warning(f"Unable to parse date: {row['Date']} for indicator: {indicator}")
                 continue
 
             forecast = safe_strip(row.get('Forecast', ''))
@@ -265,7 +266,7 @@ def process_data(df, country):
             row.extend(actuals)
             processed_data.append(row)
         else:
-            logging.warning(f"沒有數據用於指標: {indicator}")
+            logging.warning(f"No data for indicator: {indicator}")
 
     return processed_data, indicators
 
@@ -282,23 +283,23 @@ def create_chart(data, indicator):
         secondary_y=False,
     )
 
-    # 只獲取最新的預測值
+    # Only get the latest forecast value
     latest_forecast = next((f for f in forecasts if f is not None), None)
     latest_date = dates[0]
 
     if latest_forecast is not None:
-        # 只從最新日期開始繪製預測線
+        # Only draw the forecast line from the latest date
         forecast_dates = [d for d in dates if d <= latest_date]
         forecast_values = [latest_forecast] * len(forecast_dates)
         
         fig.add_trace(
-            go.Scatter(x=forecast_dates, y=forecast_values, name="Forecast(This/ Previous Month)", 
+            go.Scatter(x=forecast_dates, y=forecast_values, name="Forecast (Current/Previous Month)", 
                        mode="lines", line=dict(dash="dash", color="gray")),
             secondary_y=False,
         )
-        logging.info(f"繪製預測線，值為: {latest_forecast}")
+        logging.info(f"Drawing forecast line, value: {latest_forecast}")
     else:
-        logging.info("沒有有效的預測值，不繪製預測線")
+        logging.info("No valid forecast value, not drawing forecast line")
 
     fig.update_layout(
         title=indicator,
@@ -312,131 +313,7 @@ def create_chart(data, indicator):
     return fig
 
 def main():
-    st.title("US & China Economic Data Summary (Jason Chan)")
+    st.title("US and China Economic Data Analysis (Jason Chan)")
 
-    # 添加下拉選單到側邊欄
-    country = st.sidebar.selectbox("Country", ["US", "China"])
-
-    if 'indicators' not in st.session_state:
-        st.session_state.indicators = {}
-
-    if 'processed_df' not in st.session_state:
-        st.session_state.processed_df = None
-
-    if 'raw_df' not in st.session_state:
-        st.session_state.raw_df = None
-
-    if st.button("爬取並分析數據"):
-        with st.spinner("Getting data......。"):
-            try:
-                urls = get_urls(country)
-                df = scrape_data(urls)
-                
-                if not df.empty:
-                    st.success("Scrapping Successfully！")
-                    
-                    # 保存原始數據
-                    st.session_state.raw_df = df
-                    
-                    processed_data, indicators = process_data(df, country)
-                    
-                    if processed_data:
-                        st.success("Data Analysis Complete！")
-                        st.session_state.processed_df = pd.DataFrame(processed_data, columns=["Indicator", "Update", "Vs Forecast", "Forecast", "This Month", "1 Month Ago", "2 Month Ago", "3 Month Ago", "4 Month Ago"])
-                        st.session_state.indicators = indicators
-                    else:
-                        st.warning("沒有處理任何數據。請檢查數據結構。")
-                else:
-                    st.warning("沒有爬取到任何數據。請檢查URL並重試。")
-            except Exception as e:
-                st.error(f"處理過程中發生錯誤: {str(e)}")
-                logging.exception("處理過程中發生錯誤")
-
-    if st.session_state.raw_df is not None:
-        with st.expander("Click for Raw Data"):
-            st.subheader("Raw Data")
-            st.dataframe(st.session_state.raw_df)
-        
-        # 添加下載原始數據的按鈕
-        csv_raw = st.session_state.raw_df.to_csv(index=False).encode('utf-8')
-        st.download_button(
-            label="Download Data CSV",
-            data=csv_raw,
-            file_name=f"raw_{country.lower()}_economic_data.csv",
-            mime="text/csv",
-        )
-
-    if st.session_state.processed_df is not None:
-        st.subheader("數據總結")
-        
-        def color_rows(row):
-            if country == "US":
-                if row.name < 5:  # 就業數據
-                    return ['background-color: #FFFFE0; text-align: center; vertical-align: middle'] * len(row)
-                elif 5 <= row.name < 13:  # 通貨膨脹數據
-                    return ['background-color: #E6E6FA; text-align: center; vertical-align: middle'] * len(row)
-                else:  # 其他經濟指標
-                    return ['background-color: #E6F3FF; text-align: center; vertical-align: middle'] * len(row)
-            elif country == "China":
-                if row.name < 6:  # 前6個指標
-                    return ['background-color: #FFFFE0; text-align: center; vertical-align: middle'] * len(row)
-                elif 6 <= row.name < 9:  # 7-9個指標
-                    return ['background-color: #E6E6FA; text-align: center; vertical-align: middle'] * len(row)
-                elif 9 <= row.name < 14:  # 10-14個指標
-                    return ['background-color: #E6F3FF; text-align: center; vertical-align: middle'] * len(row)
-                else:  # 15-18個指標
-                    return ['background-color: #FFFFFF; text-align: center; vertical-align: middle'] * len(row)
-        
-        def color_text(val):
-            if val == 'Worse Off':
-                return 'color: red'
-            elif val == 'Better Off':
-                return 'color: green'
-            return ''
-
-        styled_df = st.session_state.processed_df.style.apply(color_rows, axis=1)
-        styled_df = styled_df.applymap(color_text, subset=['Vs Forecast'])
-        styled_df = styled_df.set_properties(**{
-            'text-align': 'center',
-            'vertical-align': 'middle',
-            'height': '50px'  # 調整單元格高度
-        })
-        
-        # 創建兩列佈局
-        col1, col2 = st.columns([3, 2])
-        
-        with col1:
-            # 顯示數據表格
-            st.dataframe(styled_df)
-        
-        with col2:
-            # 創建一個空的佔位符來顯示圖表
-            chart_placeholder = st.empty()
-        
-        # 為每個指標創建一個按鈕在側邊欄
-        st.sidebar.header("Select Indicator")
-        for index, row in st.session_state.processed_df.iterrows():
-            if st.sidebar.button(row['Indicator']):
-                # 獲取該指標的所有數據
-                indicator_data = st.session_state.indicators.get(row['Indicator'], [])
-                indicator_data = [d for d in indicator_data if d.get('Actual')]
-                if indicator_data:
-                    # 創建並顯示圖表
-                    fig = create_chart(indicator_data, row['Indicator'])
-                    chart_placeholder.plotly_chart(fig)
-                else:
-                    chart_placeholder.warning(f"沒有找到 {row['Indicator']} 的有效數據")
-        
-        csv = st.session_state.processed_df.to_csv(index=False).encode('utf-8')
-        st.download_button(
-            label="下載處理後的數據為CSV",
-            data=csv,
-            file_name=f"processed_{country.lower()}_economic_data.csv",
-            mime="text/csv",
-        )
-
-    st.warning("注意：此爬蟲和分析器僅用於教育目的丶不保證資料準確性。請尊重網站的服務條款和robots.txt文件。數據來源: investing.com")
-    st.warning("注意：Lower Inflation data is good in US as Inflation is the problem; Higher in China is good as Deflation is the problem")
-
-if __name__ == "__main__":
-    main()
+    # Add dropdown menu to sidebar
+    country = st.sidebar.selectbox
