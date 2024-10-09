@@ -136,7 +136,6 @@ def get_lower_is_better(country):
             "People's Bank of China Loan Prime Rate"
         ]
 
-
 def safe_strip(value):
     """Safely strip the value"""
     return value.strip() if isinstance(value, str) else value
@@ -270,7 +269,6 @@ def process_data(df, country):
 
     return processed_data, indicators
 
-
 def create_chart(data, indicator):
     dates = [d['Date'] for d in data]
     actuals = [float(safe_strip(d['Actual']).rstrip('K%M')) if d['Actual'] and d['Actual'] not in ['', 'None'] else None for d in data]
@@ -314,6 +312,3 @@ def create_chart(data, indicator):
 
 def main():
     st.title("US and China Economic Data Analysis (Jason Chan)")
-
-    # Add dropdown menu to sidebar
-    country = st.sidebar.selectbox
