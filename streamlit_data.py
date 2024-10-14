@@ -236,7 +236,11 @@ def process_data(df, country):
             forecast = safe_strip(row.get('Forecast', ''))
             actual = safe_strip(row.get('Actual', ''))
             
-            vs_forecast = compare_values(actual, forecast, indicator, lower_is_better)
+            # Only compare if both values are not None and not empty
+            if actual and forecast and actual != '-' and forecast != '-':
+                vs_forecast = compare_values(actual, forecast, indicator, lower_is_better)
+            else:
+                vs_forecast = ''
             
             indicators[indicator].append({
                 "Date": date,
